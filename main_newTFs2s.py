@@ -9,23 +9,24 @@ from sklearn import preprocessing
 from TS_datasets import getLorentz, getLM, getSinusoids
 
 # Hyperparams
-PAD = 0
-EOS = 0
 batch_size = 50
-num_epochs = 1000
+num_epochs = 10000
 tr_data_samples = 2000
 vs_data_samples = 1000
 ts_data_samples = 1000
 
-alternate_train = 1 # train both on inferenced and external inputs
+alternate_train = 0 # train both on inferenced and external inputs
 
 config = dict(cell_type = 'RNN',
-              num_layers = 1,
-              hidden_units = 20,
+              num_layers = 2,
+              hidden_units = 5,
               input_dim = 1,
-              bidirect = 0,
+              bidirect = 1,
               max_gradient_norm = 5, # TODO: check variance (Bengio)
-              learning_rate = 0.001,)
+              learning_rate = 0.001,
+              EOS = 0,
+              last_layer_state_only = 0)
+print(config)
 
 # ================= DATASET =================
 #training data
@@ -57,6 +58,10 @@ G = s2sModel(config)
 sess.run(tf.global_variables_initializer())
 train_writer = tf.summary.FileWriter('C:/Windows/Temp/tensorboard', graph=sess.graph)
 
+# ================= DEBUG =================
+
+#encoder_state = sess.run(G.encoder_state, {G.encoder_inputs: data, G.encoder_inputs_length: [data.shape[0] for _ in range(tr_data_samples)]} )  
+
 # ================= TRAINING =================
 time_tr_start = time.time()
 max_batches = int(data.shape[1]/batch_size)
@@ -67,10 +72,10 @@ try:
     for ep in range(num_epochs):
         
         # shuffle data
-        if ep % 1:
-            idx = np.random.permutation(data.shape[1])
-            data = data[:,idx,:] 
-            targets = targets[:,idx,:] 
+#        if ep % 1:
+        idx = np.random.permutation(data.shape[1])
+        data = data[:,idx,:] 
+        targets = targets[:,idx,:] 
         
 #        if ep % 10 == 0 and alternate_train: # train on external inputs
         if False:
@@ -94,8 +99,8 @@ try:
                 inf_loss_track.append(inf_loss)
             
         # TODO: save model yielding best results on validation
-        if ep % 100 == 0:
-            
+        if ep % 100 == 0:   
+            print('Ep: {}'.format(ep))
 #            fdvs = {G.encoder_inputs: valid_data,
 #                    G.encoder_inputs_length: [valid_data.shape[0] for _ in range(vs_data_samples)],
 #                    G.decoder_outputs: valid_targets}

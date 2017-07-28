@@ -13,7 +13,8 @@ class s2sModel():
         self.bidirect = config['bidirect']
         self.max_gradient_norm = config['max_gradient_norm']
         self.learning_rate = config['learning_rate']
-        self.EOS = 0
+        self.EOS = config['EOS']
+        self.last_layer_state_only = config['last_layer_state_only']
         
         self._make_graph()
         
@@ -76,7 +77,13 @@ class s2sModel():
                     time_major=True,
                     dtype=tf.float32))
             
-            self.encoder_state = encoder_states          
+            # define decoder initial state
+            if(self.last_layer_state_only):
+                self.context_vector = encoder_states[-1] # last state from last layer only
+                self.decoder_init_state = tuple([self.context_vector for _ in range(self.num_layers)])
+            else:
+                self.context_vector = encoder_states[::-1] # last states from all layers (in reverse order)         
+                self.decoder_init_state = self.context_vector
             
             
     def _init_bidirectional_encoder(self):  
@@ -91,13 +98,22 @@ class s2sModel():
                     time_major=True,
                     dtype=tf.float32))
             
+            
             # concatenate the states of fw and bw cells
             if isinstance(encoder_fw_state[-1], LSTMStateTuple):   
-                self.encoder_state = tuple(LSTMStateTuple(c=tf.concat((encoder_fw_state[i].c, encoder_bw_state[i].c), 1), 
+                encoder_states = tuple(LSTMStateTuple(c=tf.concat((encoder_fw_state[i].c, encoder_bw_state[i].c), 1), 
                                                           h=tf.concat((encoder_fw_state[i].h, encoder_bw_state[i].h), 1))
                                                           for i in range(self.num_layers))                    
             elif isinstance(encoder_fw_state[-1], tf.Tensor):
-                self.encoder_state = tuple(tf.concat((encoder_fw_state[i], encoder_bw_state[i]), 1) for i in range(self.num_layers))
+                encoder_states = tuple(tf.concat((encoder_fw_state[i], encoder_bw_state[i]), 1) for i in range(self.num_layers))
+            
+            # define decoder initial state
+            if(self.last_layer_state_only):
+                self.context_vector = encoder_states[-1] # last state from last layer only
+                self.decoder_init_state = tuple([self.context_vector for _ in range(self.num_layers)])
+            else:
+                self.context_vector = encoder_states[::-1] # last states from all layers (in reverse order)        
+                self.decoder_init_state = self.context_vector                
     
     
     def _init_decoder(self):
@@ -123,7 +139,7 @@ class s2sModel():
             tr_decoder = tf.contrib.seq2seq.BasicDecoder(
                     self.decoder_cell, 
                     tr_helper, 
-                    self.encoder_state, 
+                    self.decoder_init_state, 
                     output_layer=None)
             
             # Dynamic decoding
@@ -165,8 +181,7 @@ class s2sModel():
             inf_decoder = tf.contrib.seq2seq.BasicDecoder(
                     self.decoder_cell,
                     inf_helper,
-                    self.encoder_state,
-                    #output_layer=None,
+                    self.decoder_init_state,
                     output_layer=self.output_layer)  # projection applied per timestep
                     
             # Dynamic decoding
