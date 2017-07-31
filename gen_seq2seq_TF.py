@@ -195,6 +195,33 @@ class s2sModel():
             
             self.inf_outputs = inf_outputs.rnn_output
             
+            
+            # ------------------ SCHEDULED SAMPLING ------------------
+            
+            # Helper
+            sched_helper = seq2seq.ScheduledOutputTrainingHelper(decoder_train_inputs,
+                                                                 decoder_train_lengths,
+                                                                 0.9,
+                                                                 time_major=True, 
+                                                                 seed=None, 
+                                                                 next_input_layer=None)
+            
+            # Decoder
+            sched_decoder = seq2seq.BasicDecoder(
+                    self.decoder_cell, 
+                    sched_helper, 
+                    self.decoder_init_state, 
+                    output_layer=self.output_layer)          
+            
+            # Dynamic decoding
+            sched_outputs, _, _ = seq2seq.dynamic_decode(
+                    sched_decoder,
+                    output_time_major=True,
+                    swap_memory=True,
+                    scope=decoder_scope)
+            
+            self.sched_outputs = sched_outputs.rnn_output
+            
             # ------------------ TEACH + INFERENCE ------------------ 
             
             # callable that takes (time, outputs, state, sample_ids) and emits (finished, next_inputs, next_state)
@@ -265,9 +292,18 @@ class s2sModel():
             self.inf_update_step = optimizer.apply_gradients(zip(inf_clipped_gradients, parameters))
             
             
+            #  --------- SCHEDULED SAMPLING LOSS ---------
+            self.sched_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.sched_outputs)
+                        
+            # Calculate and clip gradients
+            sched_gradients = tf.gradients(self.sched_loss, parameters)
+            sched_clipped_gradients, _ = tf.clip_by_global_norm(sched_gradients, self.max_gradient_norm)
+            
+            self.sched_update_step = optimizer.apply_gradients(zip(sched_clipped_gradients, parameters))
+            
             # --------- TEACHER + INFERENCE LOSS ---------
-            #self.teach_inf_loss = 0.1*self.teach_loss + self.inf_loss
-            self.teach_inf_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.teach_inf_outputs)
+            self.teach_inf_loss = 0.1*self.teach_loss + self.inf_loss
+#            self.teach_inf_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.teach_inf_outputs)
             
             # Calculate and clip gradients
             teach_inf_gradients = tf.gradients(self.teach_inf_loss, parameters)

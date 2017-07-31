@@ -12,8 +12,8 @@ from TS_datasets import getLorentz, getLM, getSinusoids
 batch_size = 50
 num_epochs = 1000
 tr_data_samples = 2000
-vs_data_samples = 1000
-ts_data_samples = 1000
+vs_data_samples = 2000
+ts_data_samples = 2000
 
 alternate_train = 0 # train both on inferenced and external inputs
 
@@ -106,7 +106,18 @@ try:
                 inf_loss_track.append(inf_loss)
                 teach_loss_track.append(teach_loss) 
                 
-        elif True: # train on inference + teacher
+        elif True: # scheduled training
+            for batch in range(max_batches):
+                
+                fdtr = {G.encoder_inputs: training_data[:,(batch)*batch_size:(batch+1)*batch_size,:],
+                        G.encoder_inputs_length: [training_data.shape[0] for _ in range(batch_size)],
+                        G.decoder_outputs: training_targets[:,(batch)*batch_size:(batch+1)*batch_size,:]}
+                
+                _, inf_loss, teach_loss = sess.run([G.sched_update_step, G.inf_loss, G.teach_loss], fdtr)     
+                inf_loss_track.append(inf_loss)
+                teach_loss_track.append(teach_loss) 
+                
+        elif False: # train on inference + teacher
             for batch in range(max_batches):
                 
                 fdtr = {G.encoder_inputs: training_data[:,(batch)*batch_size:(batch+1)*batch_size,:],
