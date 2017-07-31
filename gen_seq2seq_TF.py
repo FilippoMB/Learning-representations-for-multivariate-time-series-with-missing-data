@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow.contrib.rnn import LSTMCell, BasicRNNCell, GRUCell, LSTMStateTuple, MultiRNNCell
 import tensorflow.contrib.seq2seq as seq2seq
 from tensorflow.python.layers import core as layers_core
+import numpy as np
 
 class s2sModel():
     
@@ -127,29 +128,29 @@ class s2sModel():
             # projection of decoder output
             self.output_layer = layers_core.Dense(self.input_dim, use_bias=False, name="output_proj")
                      
-            # ------------------ TRAINING ------------------
+            # ------------------ TEACHER FORCING ------------------
             
             # Training Helper
-            tr_helper = tf.contrib.seq2seq.TrainingHelper(
+            teach_helper = seq2seq.TrainingHelper(
                     decoder_train_inputs, 
                     decoder_train_lengths, 
                     time_major=True)
             
             # Decoder
-            tr_decoder = tf.contrib.seq2seq.BasicDecoder(
+            teach_decoder = seq2seq.BasicDecoder(
                     self.decoder_cell, 
-                    tr_helper, 
+                    teach_helper, 
                     self.decoder_init_state, 
                     output_layer=None)
             
             # Dynamic decoding
-            tr_outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(
-                    tr_decoder,
+            teach_outputs, final_context_state, _ = seq2seq.dynamic_decode(
+                    teach_decoder,
                     output_time_major=True,
                     swap_memory=True,
                     scope=decoder_scope)
 
-            self.tr_outputs = self.output_layer(tr_outputs.rnn_output) # projection applied all togheter at the end
+            self.teach_outputs = self.output_layer(teach_outputs.rnn_output) # projection applied all togheter at the end
                     
             # ------------------ INFERENCE ------------------ 
 
@@ -172,20 +173,20 @@ class s2sModel():
                 return (finished, next_inputs, state)
             
             # Inference Helper 
-            inf_helper = tf.contrib.seq2seq.CustomHelper(
+            inf_helper = seq2seq.CustomHelper(
                     initialize_fn, 
                     sample_fn, 
                     next_inputs_fn)
 
             # Decoder
-            inf_decoder = tf.contrib.seq2seq.BasicDecoder(
+            inf_decoder = seq2seq.BasicDecoder(
                     self.decoder_cell,
                     inf_helper,
                     self.decoder_init_state,
                     output_layer=self.output_layer)  # projection applied per timestep
                     
             # Dynamic decoding
-            inf_outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
+            inf_outputs, _, _ = seq2seq.dynamic_decode(
                     inf_decoder,
                     maximum_iterations=tf.reduce_max(decoder_train_lengths),
                     output_time_major=True,
@@ -193,6 +194,39 @@ class s2sModel():
                     scope=decoder_scope)
             
             self.inf_outputs = inf_outputs.rnn_output
+            
+            # ------------------ TEACH + INFERENCE ------------------ 
+            
+            # callable that takes (time, outputs, state, sample_ids) and emits (finished, next_inputs, next_state)
+            def next_inputs_fn2(time, outputs, state, sample_ids): 
+                del sample_ids
+                finished = (time >= decoder_train_lengths)
+                candidate = tf.where(np.random.rand() > 0.2, outputs, decoder_train_inputs[time,:,:])
+                next_inputs = tf.where(finished, self.EOS_slice[0,:,:], candidate)
+                return (finished, next_inputs, state)
+            
+            # Inference Helper 
+            teach_inf_helper = seq2seq.CustomHelper(
+                    initialize_fn, 
+                    sample_fn, 
+                    next_inputs_fn2)
+
+            # Decoder
+            teach_inf_decoder = seq2seq.BasicDecoder(
+                    self.decoder_cell,
+                    teach_inf_helper,
+                    self.decoder_init_state,
+                    output_layer=self.output_layer)  # projection applied per timestep
+                    
+            # Dynamic decoding
+            teach_inf_outputs, _, _ = seq2seq.dynamic_decode(
+                    teach_inf_decoder,
+                    maximum_iterations=tf.reduce_max(decoder_train_lengths),
+                    output_time_major=True,
+                    swap_memory=True,
+                    scope=decoder_scope)
+            
+            self.teach_inf_outputs = teach_inf_outputs.rnn_output            
             
             
     def _init_loss(self):
@@ -210,14 +244,16 @@ class s2sModel():
 #                if not ("Bias" in tf_var.name or "Output_" in tf_var.name):
 #                    reg_loss += tf.reduce_mean(tf.nn.l2_loss(tf_var))
             
-            # --------- TRAINING LOSS ---------
-            self.tr_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.tr_outputs)
+            
+            # --------- TEACHER LOSS ---------
+            self.teach_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.teach_outputs)
             
             # Calculate and clip gradients
-            tr_gradients = tf.gradients(self.tr_loss, parameters)
-            tr_clipped_gradients, _ = tf.clip_by_global_norm(tr_gradients, self.max_gradient_norm)
+            teach_gradients = tf.gradients(self.teach_loss, parameters)
+            teach_clipped_gradients, _ = tf.clip_by_global_norm(teach_gradients, self.max_gradient_norm)
             
-            self.tr_update_step = optimizer.apply_gradients(zip(tr_clipped_gradients, parameters))
+            self.teach_update_step = optimizer.apply_gradients(zip(teach_clipped_gradients, parameters))
+            
             
             # --------- INFERENCE LOSS ---------
             self.inf_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.inf_outputs)
@@ -228,8 +264,19 @@ class s2sModel():
                        
             self.inf_update_step = optimizer.apply_gradients(zip(inf_clipped_gradients, parameters))
             
+            
+            # --------- TEACHER + INFERENCE LOSS ---------
+            #self.teach_inf_loss = 0.1*self.teach_loss + self.inf_loss
+            self.teach_inf_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.teach_inf_outputs)
+            
+            # Calculate and clip gradients
+            teach_inf_gradients = tf.gradients(self.teach_inf_loss, parameters)
+            teach_inf_clipped_gradients, _ = tf.clip_by_global_norm(teach_inf_gradients, self.max_gradient_norm)
+                       
+            self.teach_inf_update_step = optimizer.apply_gradients(zip(teach_inf_clipped_gradients, parameters))
+            
             # tensorboard
-            tf.summary.scalar('tr_loss', self.tr_loss)
+            tf.summary.scalar('teach_loss', self.teach_loss)
             tf.summary.scalar('inf_loss', self.inf_loss)
             tvars = tf.trainable_variables()
             for tvar in tvars:

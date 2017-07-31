@@ -28,7 +28,8 @@ def getLorentz():
       return sigma * (y - x), x * (rho - z) - y, x * y - beta * z  # derivatives
        
     while True:
-        state0 = np.random.randint(5,15,3)
+#        state0 = np.random.randint(5,15,3)
+        state0 = np.random.uniform(size=3,low=5.0,high=15.0)
         states = odeint(f, state0, t)
         
         yield states[:,0]
