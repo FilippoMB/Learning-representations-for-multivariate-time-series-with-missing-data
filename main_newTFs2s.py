@@ -3,14 +3,14 @@ import numpy as np
 from scipy.stats.stats import pearsonr
 import matplotlib.pyplot as plt
 np.set_printoptions(precision=2)
-import time
+import time, sys
 import tensorflow as tf
 from sklearn import preprocessing
 from TS_datasets import getLorentz, getLM, getSinusoids
 
 # Hyperparams
-batch_size = 50
-num_epochs = 1000
+batch_size = 200
+num_epochs = 20000
 tr_data_samples = 2000
 vs_data_samples = 2000
 ts_data_samples = 2000
@@ -22,11 +22,12 @@ config = dict(cell_type = 'LSTM',
               hidden_units = 5,
               input_dim = 1,
               bidirect = 1,
-              max_gradient_norm = 15, # TODO: check variance (Bengio)
+              max_gradient_norm = 5, # TODO: check variance (Bengio)
               learning_rate = 0.001,
               EOS = 0,
               last_layer_state_only = 0,
-              reverse_input = 0)
+              reverse_input = 0,
+              training_mode = 'sched')
 print(config)
 
 # ================= DATASET =================
@@ -63,17 +64,22 @@ tf.reset_default_graph()
 sess = tf.Session()
 G = s2sModel(config)
 sess.run(tf.global_variables_initializer())
-train_writer = tf.summary.FileWriter('C:/Windows/Temp/tensorboard', graph=sess.graph)
 
+train_writer = tf.summary.FileWriter('/tmp/tensorboard', graph=sess.graph)
+saver = tf.train.Saver()
 # ================= DEBUG =================
 
 #encoder_state = sess.run(G.encoder_state, {G.encoder_inputs: data, G.encoder_inputs_length: [data.shape[0] for _ in range(tr_data_samples)]} )  
 
 # ================= TRAINING =================
+
+# initialize training stuff
 time_tr_start = time.time()
 max_batches = training_data.shape[1]//batch_size
 teach_loss_track = []
 inf_loss_track = []
+min_vs_loss = np.infty
+model_name = "/tmp/tkae_model_"+str(np.random.rand())+".ckpt"
 
 try:
     for ep in range(num_epochs):
@@ -83,97 +89,74 @@ try:
         training_data = training_data[:,idx,:] 
         training_targets = training_targets[:,idx,:] 
         
-#        if ep % 10 == 0 and alternate_train: 
-        if False: # train on teacher
-            for batch in range(max_batches):
-                
-                fdtr = {G.encoder_inputs: training_data[:,(batch)*batch_size:(batch+1)*batch_size,:],
-                        G.encoder_inputs_length: [training_data.shape[0] for _ in range(batch_size)],
-                        G.decoder_outputs: training_targets[:,(batch)*batch_size:(batch+1)*batch_size,:]}
-                
+        for batch in range(max_batches):
+            
+            fdtr = {G.encoder_inputs: training_data[:,(batch)*batch_size:(batch+1)*batch_size,:],
+                    G.encoder_inputs_length: [training_data.shape[0] for _ in range(batch_size)],
+                    G.decoder_outputs: training_targets[:,(batch)*batch_size:(batch+1)*batch_size,:]}  
+            
+            if config['training_mode'] == 'teach': # train on teacher
                 _, inf_loss, teach_loss = sess.run([G.teach_update_step, G.inf_loss, G.teach_loss], fdtr) 
-                inf_loss_track.append(inf_loss)
-                teach_loss_track.append(teach_loss)                          
-                
-        elif False: # train on inference
-            for batch in range(max_batches):
-                
-                fdtr = {G.encoder_inputs: training_data[:,(batch)*batch_size:(batch+1)*batch_size,:],
-                        G.encoder_inputs_length: [training_data.shape[0] for _ in range(batch_size)],
-                        G.decoder_outputs: training_targets[:,(batch)*batch_size:(batch+1)*batch_size,:]}
-                
+            
+            elif config['training_mode'] == 'inf': # train on inference 
                 _, inf_loss, teach_loss = sess.run([G.inf_update_step, G.inf_loss, G.teach_loss], fdtr)     
-                inf_loss_track.append(inf_loss)
-                teach_loss_track.append(teach_loss) 
-                
-        elif True: # scheduled training
-            for batch in range(max_batches):
-                
-                fdtr = {G.encoder_inputs: training_data[:,(batch)*batch_size:(batch+1)*batch_size,:],
-                        G.encoder_inputs_length: [training_data.shape[0] for _ in range(batch_size)],
-                        G.decoder_outputs: training_targets[:,(batch)*batch_size:(batch+1)*batch_size,:]}
-                
+
+            elif config['training_mode'] == 'sched': # scheduled training
                 _, inf_loss, teach_loss = sess.run([G.sched_update_step, G.inf_loss, G.teach_loss], fdtr)     
-                inf_loss_track.append(inf_loss)
-                teach_loss_track.append(teach_loss) 
-                
-        elif False: # train on inference + teacher
-            for batch in range(max_batches):
-                
-                fdtr = {G.encoder_inputs: training_data[:,(batch)*batch_size:(batch+1)*batch_size,:],
-                        G.encoder_inputs_length: [training_data.shape[0] for _ in range(batch_size)],
-                        G.decoder_outputs: training_targets[:,(batch)*batch_size:(batch+1)*batch_size,:]}
-                
-                _, inf_loss, teach_loss = sess.run([G.teach_inf_update_step, G.inf_loss, G.teach_loss], fdtr)     
-                inf_loss_track.append(inf_loss)    
-                teach_loss_track.append(teach_loss) 
+
+            else:
+                sys.exit('Invalid training mode')
             
-        # TODO: save model yielding best results on validation
+            inf_loss_track.append(inf_loss)
+            teach_loss_track.append(teach_loss) 
+            
+        # check how the training is going on the validations set    
         if ep % 100 == 0:   
-            print('Ep: {}'.format(ep))
-#            fdvs = {G.encoder_inputs: valid_data,
-#                    G.encoder_inputs_length: [valid_data.shape[0] for _ in range(vs_data_samples)],
-#                    G.decoder_outputs: valid_targets}
-#            vs_pred, vs_loss, summary_ = sess.run([G.inf_outputs, G.inf_loss, G.merged_summary], fdvs)
-#            train_writer.add_summary(summary_, ep)
-#            print('epoch {} -- Valid MSE {}'.format(ep, vs_loss))            
-#            # plot
-#            inp = fdvs[G.encoder_inputs][:,0,0]
-#            pred = vs_pred[:-1,0,0]
-#            plt.plot(inp, label='input')
-#            plt.plot(pred, label='predicted')
-#            plt.legend(loc='upper right')
-#            plt.show(block=False)
             
+            print('Ep: {}'.format(ep))
+            
+            # DEBUG
             fdtr = {G.encoder_inputs: training_data,
                     G.encoder_inputs_length: [training_data.shape[0] for _ in range(tr_data_samples)],
                     G.decoder_outputs: training_targets}
-            inf_pred, inf_loss = sess.run([G.inf_outputs, G.inf_loss], fdtr)
-            print('Train MSE (INF) {}'.format(inf_loss))
-            # plot
-            inp = fdtr[G.encoder_inputs][:,0,0]
-            pred = inf_pred[:-1,0,0]
-            plt.plot(inp, label='input')
-            plt.plot(pred, label='predicted')
+            inf_loss, teach_loss = sess.run([G.inf_loss, G.teach_loss], fdtr)
+            print('TR: inf_loss: %.3f, teach_loss: %.3f, min_inf_loss: %.3f'%(inf_loss, teach_loss, np.min(inf_loss_track)))
+#            # plot
+#            inp = fdtr[G.encoder_inputs][:,0,0]
+#            inf_pred = inf_pred[:-1,0,0]
+#            teach_pred = teach_pred[:-1,0,0]
+#            plt.plot(inp, label='input')
+#            plt.plot(inf_pred, label='inf_pred')
+#            plt.plot(teach_pred, label='teach_pred')
+#            plt.legend(loc='upper right')
+#            plt.show(block=False)              
+            
+            fdvs = {G.encoder_inputs: valid_data,
+                    G.encoder_inputs_length: [valid_data.shape[0] for _ in range(vs_data_samples)],
+                    G.decoder_outputs: valid_targets}
+            inf_outvs, inf_lossvs, teach_outvs, teach_lossvs = sess.run(
+                    [G.inf_outputs, G.inf_loss, G.teach_outputs, G.teach_loss], fdvs)
+#            train_writer.add_summary(summary_, ep)
+            print('VS: inf_loss: %.3f, teach_loss: %.3f'%(inf_lossvs, teach_lossvs))
+            
+            # plot a random ts from the validation set
+            plot_idx = np.random.randint(low=0,high=vs_data_samples-1)
+            inp = valid_data[:,plot_idx,0]
+            inf_pred = inf_outvs[:-1,plot_idx,0]
+            teach_pred = teach_outvs[:-1,plot_idx,0]
+            plt.plot(inp, label='inp')
+            plt.plot(inf_pred, label='inf')
+            plt.plot(teach_pred, label='teach')
             plt.legend(loc='upper right')
             plt.show(block=False)  
             
-            fdtr = {G.encoder_inputs: training_data,
-                    G.encoder_inputs_length: [training_data.shape[0] for _ in range(tr_data_samples)],
-                    G.decoder_outputs: training_targets}
-            teach_pred, teach_loss = sess.run([G.teach_outputs, G.teach_loss], fdtr)
-            print('Train MSE (EXT) {}'.format(teach_loss))           
-            # plot
-            inp = fdtr[G.encoder_inputs][:,0,0]
-            pred = teach_pred[:-1,0,0]
-            plt.plot(inp, label='input')
-            plt.plot(pred, label='predicted')
-            plt.legend(loc='upper right')
-            plt.show(block=False)            
+            # Save model yielding best results on training
+            if inf_lossvs < min_vs_loss:
+                save_path = saver.save(sess, model_name)
+                                        
 
 except KeyboardInterrupt:
     print('training interrupted')
-
 
 plt.plot(teach_loss_track, label='teach_loss_track')
 plt.legend(loc='upper right')
@@ -186,6 +169,10 @@ print('inf_loss {:.4f} after {} examples (batch_size={}). Tot time: {}'.format(i
 
 # ================= TEST =================
 print('********** TEST **********')
+
+tf.reset_default_graph() # just for debug
+saver.restore(sess, model_name)
+
 fdts = {G.encoder_inputs: test_data,
         G.encoder_inputs_length: [test_data.shape[0] for _ in range(ts_data_samples)],
         G.decoder_outputs: test_targets}

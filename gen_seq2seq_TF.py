@@ -198,7 +198,7 @@ class s2sModel():
             
             # ------------------ SCHEDULED SAMPLING ------------------
             
-            # Helper
+            # Scheduled Sampling Helper
             sched_helper = seq2seq.ScheduledOutputTrainingHelper(decoder_train_inputs,
                                                                  decoder_train_lengths,
                                                                  0.9,
@@ -222,39 +222,6 @@ class s2sModel():
             
             self.sched_outputs = sched_outputs.rnn_output
             
-            # ------------------ TEACH + INFERENCE ------------------ 
-            
-            # callable that takes (time, outputs, state, sample_ids) and emits (finished, next_inputs, next_state)
-            def next_inputs_fn2(time, outputs, state, sample_ids): 
-                del sample_ids
-                finished = (time >= decoder_train_lengths)
-                candidate = tf.where(np.random.rand() > 0.2, outputs, decoder_train_inputs[time,:,:])
-                next_inputs = tf.where(finished, self.EOS_slice[0,:,:], candidate)
-                return (finished, next_inputs, state)
-            
-            # Inference Helper 
-            teach_inf_helper = seq2seq.CustomHelper(
-                    initialize_fn, 
-                    sample_fn, 
-                    next_inputs_fn2)
-
-            # Decoder
-            teach_inf_decoder = seq2seq.BasicDecoder(
-                    self.decoder_cell,
-                    teach_inf_helper,
-                    self.decoder_init_state,
-                    output_layer=self.output_layer)  # projection applied per timestep
-                    
-            # Dynamic decoding
-            teach_inf_outputs, _, _ = seq2seq.dynamic_decode(
-                    teach_inf_decoder,
-                    maximum_iterations=tf.reduce_max(decoder_train_lengths),
-                    output_time_major=True,
-                    swap_memory=True,
-                    scope=decoder_scope)
-            
-            self.teach_inf_outputs = teach_inf_outputs.rnn_output            
-            
             
     def _init_loss(self):
         with tf.variable_scope("Loss"): 
@@ -263,7 +230,7 @@ class s2sModel():
             parameters = tf.trainable_variables()
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
             
-            # TODO: L2 norm and lr decay
+            # TODO: think about dropout, L2 norm and lr decay
             # L2 regularization (to avoid overfitting and to have a better generalization capacity)
             reg_loss = 0
             for tf_var in tf.trainable_variables():
@@ -303,7 +270,6 @@ class s2sModel():
             
             # --------- TEACHER + INFERENCE LOSS ---------
             self.teach_inf_loss = 0.1*self.teach_loss + self.inf_loss
-#            self.teach_inf_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.teach_inf_outputs)
             
             # Calculate and clip gradients
             teach_inf_gradients = tf.gradients(self.teach_inf_loss, parameters)
