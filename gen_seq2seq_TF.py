@@ -31,6 +31,9 @@ class s2sModel():
         else:
             self._init_bidirectional_encoder()
             
+        # ----- CONTEXT -----
+        self._get_context()
+            
         # ----- DECODER -----
         self._init_decoder()
         
@@ -77,16 +80,14 @@ class s2sModel():
                     sequence_length=self.encoder_inputs_length,
                     time_major=True,
                     dtype=tf.float32))
-            
+                        
             # define decoder initial state
             if(self.last_layer_state_only):
-                self.context_vector = encoder_states[-1] # last state from last layer only
-                self.decoder_init_state = tuple([self.context_vector for _ in range(self.num_layers)])
-            else:
-                self.context_vector = encoder_states[::-1] # last states from all layers (in reverse order)         
-                self.decoder_init_state = self.context_vector
-            
-            
+                self.decoder_init_state = tuple(encoder_states[-1] for _ in range(self.num_layers)) # last state from last layer only
+            else:    
+                self.decoder_init_state = encoder_states[::-1] # last states from all layers (in reverse order) 
+
+                  
     def _init_bidirectional_encoder(self):  
         with tf.variable_scope("Encoder"): 
                         
@@ -103,18 +104,29 @@ class s2sModel():
             # concatenate the states of fw and bw cells
             if isinstance(encoder_fw_state[-1], LSTMStateTuple):   
                 encoder_states = tuple(LSTMStateTuple(c=tf.concat((encoder_fw_state[i].c, encoder_bw_state[i].c), 1), 
-                                                          h=tf.concat((encoder_fw_state[i].h, encoder_bw_state[i].h), 1))
-                                                          for i in range(self.num_layers))                    
+                                                      h=tf.concat((encoder_fw_state[i].h, encoder_bw_state[i].h), 1))
+                                       for i in range(self.num_layers))                    
             elif isinstance(encoder_fw_state[-1], tf.Tensor):
                 encoder_states = tuple(tf.concat((encoder_fw_state[i], encoder_bw_state[i]), 1) for i in range(self.num_layers))
             
             # define decoder initial state
             if(self.last_layer_state_only):
-                self.context_vector = encoder_states[-1] # last state from last layer only
-                self.decoder_init_state = tuple([self.context_vector for _ in range(self.num_layers)])
+                self.decoder_init_state = tuple(encoder_states[-1] for _ in range(self.num_layers)) # last state from last layer only
+            else:     
+                self.decoder_init_state = encoder_states[::-1] # last states from all layers (in reverse order)                
+    
+    
+    def _get_context(self):
+        to_be_concat = []
+        for state in self.decoder_init_state:
+            if isinstance(state, LSTMStateTuple):
+                to_be_concat.append(tf.concat((state.h, state.c),1))
             else:
-                self.context_vector = encoder_states[::-1] # last states from all layers (in reverse order)        
-                self.decoder_init_state = self.context_vector                
+                to_be_concat.append(state)
+        if(self.last_layer_state_only):
+            self.context_vector = to_be_concat[0]
+        else:
+            self.context_vector = tf.concat(to_be_concat,1)
     
     
     def _init_decoder(self):

@@ -1,5 +1,8 @@
 import numpy as np
 from scipy.integrate import odeint
+from sklearn import preprocessing
+import sys
+import scipy
 
 # ========== SINUSOID ==========
 def getSinusoids():
@@ -59,3 +62,67 @@ def getLM():
         lm = iterate(n_iter,np.random.uniform(),r)
         
         yield lm
+
+# ========== SYNTH TS DATA ==========
+def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorentz'):   
+
+    if name == 'Lorentz':
+        TS_gen = getLorentz()
+    elif name == 'Sinusoids':
+        TS_gen = getSinusoids()
+    elif name == 'LM':
+        TS_gen == getLM()
+    else:
+        sys.exit('Invalid time series generator name')
+     
+    #training data
+    training_data = np.asarray([next(TS_gen) for _ in range(tr_data_samples)])
+    training_data = preprocessing.scale(training_data,axis=1) # standardize the data
+    training_data = np.expand_dims(training_data,-1)
+    training_data = np.transpose(training_data,axes=[1,0,2]) # time_major=True
+    training_targets = training_data
+    
+    # validation
+    valid_data = np.asarray([next(TS_gen) for _ in range(vs_data_samples)])
+    valid_data = preprocessing.scale(valid_data,axis=1) # standardize the data
+    valid_data = np.expand_dims(valid_data,-1)
+    valid_data = np.transpose(valid_data,axes=[1,0,2]) # time_major=True
+    valid_targets = valid_data
+    
+    # test data
+    test_data = np.asarray([next(TS_gen) for _ in range(ts_data_samples)])
+    test_data = preprocessing.scale(test_data,axis=1) # standardize the data
+    test_data = np.expand_dims(test_data,-1)
+    test_data = np.transpose(test_data,axes=[1,0,2]) # time_major=True
+    test_targets = test_data
+    
+    return training_data, training_targets, valid_data, valid_targets, test_data, test_targets
+
+# ========== ECG TS DATA ==========
+def getECGData(tr_ratio = 0.5):
+    datadir = 'ECG5000/ECG5000'
+    training_data = np.loadtxt(datadir+'_TRAIN',delimiter=',')
+    test_data = np.loadtxt(datadir+'_TEST',delimiter=',')
+    data = np.concatenate((training_data,test_data),axis=0)
+    data[:,1:] = preprocessing.scale(data[:,1:],axis=1)
+    data = np.expand_dims(data,-1)
+    data = np.transpose(data,axes=[1,0,2]) # time_major=True
+    
+    # split
+    num_ts = data.shape[1]
+    ind_cut = int(tr_ratio*num_ts)
+    rnd_ind = np.random.permutation(num_ts)
+    training_data = data[1:,rnd_ind[:ind_cut],:]
+    training_labels = data[0,rnd_ind[:ind_cut],:]
+    test_data = data[1:,rnd_ind[ind_cut:],:]
+    test_labels = data[0,rnd_ind[ind_cut:],:]
+    
+    # valid == train   
+    valid_data = training_data
+    valid_labels = training_labels
+        
+    return training_data, training_labels, valid_data, valid_labels, test_data, test_labels
+    
+def getVarData():
+    X = scipy.io.loadmat(file_name='../../data/VAR_data.mat')['x']
+    X = preprocessing.scale(X,axis=1) # standardize the data
