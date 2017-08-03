@@ -2,7 +2,6 @@ import tensorflow as tf
 from tensorflow.contrib.rnn import LSTMCell, BasicRNNCell, GRUCell, LSTMStateTuple, MultiRNNCell
 import tensorflow.contrib.seq2seq as seq2seq
 from tensorflow.python.layers import core as layers_core
-import numpy as np
 
 class s2sModel():
     
@@ -289,10 +288,10 @@ class s2sModel():
                        
             self.teach_inf_update_step = optimizer.apply_gradients(zip(teach_inf_clipped_gradients, parameters))
             
-            # tensorboard
-            tf.summary.scalar('teach_loss', self.teach_loss)
-            tf.summary.scalar('inf_loss', self.inf_loss)
-            tvars = tf.trainable_variables()
-            for tvar in tvars:
-                tf.summary.histogram(tvar.name.replace(':','_'), tvar)
-            self.merged_summary = tf.summary.merge_all()
+#            # tensorboard
+#            tf.summary.scalar('teach_loss', self.teach_loss)
+#            tf.summary.scalar('inf_loss', self.inf_loss)
+#            tvars = tf.trainable_variables()
+#            for tvar in tvars:
+#                tf.summary.histogram(tvar.name.replace(':','_'), tvar)
+#            self.merged_summary = tf.summary.merge_all()
