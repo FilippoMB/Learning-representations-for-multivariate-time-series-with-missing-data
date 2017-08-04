@@ -103,19 +103,31 @@ def getECGData(tr_ratio = 0.5):
     datadir = 'ECG5000/ECG5000'
     training_data = np.loadtxt(datadir+'_TRAIN',delimiter=',')
     test_data = np.loadtxt(datadir+'_TEST',delimiter=',')
-    data = np.concatenate((training_data,test_data),axis=0)
-    data[:,1:] = preprocessing.scale(data[:,1:],axis=1)
-    data = np.expand_dims(data,-1)
-    data = np.transpose(data,axes=[1,0,2]) # time_major=True
     
-    # split
-    num_ts = data.shape[1]
-    ind_cut = int(tr_ratio*num_ts)
-    rnd_ind = np.random.permutation(num_ts)
-    training_data = data[1:,rnd_ind[:ind_cut],:]
-    training_labels = data[0,rnd_ind[:ind_cut],:]
-    test_data = data[1:,rnd_ind[ind_cut:],:]
-    test_labels = data[0,rnd_ind[ind_cut:],:]
+#    print(sum(training_data[:,0]==1),sum(training_data[:,0]==2),sum(training_data[:,0]==3),sum(training_data[:,0]==4),sum(training_data[:,0]==5))
+#    print(sum(test_data[:,0]==1),sum(test_data[:,0]==2),sum(test_data[:,0]==3),sum(test_data[:,0]==4),sum(test_data[:,0]==5))
+
+    if tr_ratio == 0: 
+        training_data, test_data = np.expand_dims(test_data,-1), np.expand_dims(training_data,-1) # switch training and test
+        training_data = np.transpose(training_data,axes=[1,0,2]) # time_major=True
+        test_data = np.transpose(test_data,axes=[1,0,2]) # time_major=True
+        training_data, training_labels = training_data[1:,:,:], training_data[0,:,:]
+        test_data, test_labels = test_data[1:,:,:], test_data[0,:,:]
+        
+    else:
+        data = np.concatenate((training_data,test_data),axis=0)
+        data[:,1:] = preprocessing.scale(data[:,1:],axis=1)
+        data = np.expand_dims(data,-1)
+        data = np.transpose(data,axes=[1,0,2]) # time_major=True
+        
+        # split
+        num_ts = data.shape[1]
+        ind_cut = int(tr_ratio*num_ts)
+        rnd_ind = np.random.permutation(num_ts)
+        training_data = data[1:,rnd_ind[:ind_cut],:]
+        training_labels = data[0,rnd_ind[:ind_cut],:]
+        test_data = data[1:,rnd_ind[ind_cut:],:]
+        test_labels = data[0,rnd_ind[ind_cut:],:]
     
     # valid == train   
     valid_data = training_data

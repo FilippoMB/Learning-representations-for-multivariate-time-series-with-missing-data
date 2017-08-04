@@ -10,7 +10,7 @@ from utils import dim_reduction_plot
 import argparse
 
 # Hyperparams
-batch_size = 200
+batch_size = 250
 num_epochs = 5000
 plot_on = 0 
 
@@ -24,7 +24,7 @@ parser.add_argument("--bidirect", default=False, help="use an encoder which is b
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 parser.add_argument("--EOS", default=0, help="special symbol for start/end of time series", type=float)
-parser.add_argument("--last_layer_state_only", default=True, help="init decoder with last state of only last layer", type=bool)
+parser.add_argument("--last_layer_state_only", default=False, help="init decoder with last state of only last layer", type=bool)
 parser.add_argument("--reverse_input", default=True, help="fed input reversed for training", type=bool)
 parser.add_argument("--training_mode", default='sched', help="training mode of the decoder", type=str)
 args = parser.parse_args()
@@ -50,7 +50,7 @@ training_data, training_labels, valid_data, valid_labels, test_data, test_labels
 training_targets, valid_targets, test_targets = training_data, valid_data, test_data
 del training_labels, valid_labels
 
-# revert inputs
+# revert time
 if config['reverse_input']:
     training_data = training_data[::-1,:,:]
     valid_data = valid_data[::-1,:,:]
@@ -74,7 +74,7 @@ max_batches = training_data.shape[1]//batch_size
 teach_loss_track = []
 inf_loss_track = []
 min_vs_loss = np.infty
-model_name = "/tmp/tkae_model_"+str(np.random.rand())+".ckpt"
+model_name = "/tmp/tkae_model_"+str(time.strftime("%Y%m%d-%H%M%S"))+".ckpt"
 train_writer = tf.summary.FileWriter('/tmp/tensorboard', graph=sess.graph)
 saver = tf.train.Saver()
 
@@ -141,7 +141,7 @@ try:
                 plt.legend(loc='upper right')
                 plt.show(block=False)  
             
-            # Save model yielding best results on training
+            # Save model yielding best results on validation
             if inf_lossvs < min_vs_loss:
                 save_path = saver.save(sess, model_name)
                                         
@@ -157,12 +157,12 @@ if plot_on:
     plt.legend(loc='upper right')
     plt.show(block=False)
 time_tr_end = time.time()
-print('inf_loss {:.4f} after {} examples (batch_size={}). Tot time: {}'.format(inf_loss_track[-1], len(inf_loss_track)*batch_size, batch_size, (time_tr_end-time_tr_start)//60))
+print('Tot training time: {}'.format( (time_tr_end-time_tr_start)//60))
 
 # ================= TEST =================
 print('********** TEST **********')
 
-tf.reset_default_graph() # be sure correct weights are loaded
+sess.run(tf.global_variables_initializer()) # be sure correct weights are loaded
 saver.restore(sess, model_name)
 
 fdts = {G.encoder_inputs: test_data,
