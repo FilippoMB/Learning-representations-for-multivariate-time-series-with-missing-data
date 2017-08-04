@@ -99,7 +99,7 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
     return training_data, training_targets, valid_data, valid_targets, test_data, test_targets
 
 # ========== ECG TS DATA ==========
-def getECGData(tr_ratio = 0.5):
+def getECGData(tr_ratio = 0):
     datadir = 'ECG5000/ECG5000'
     training_data = np.loadtxt(datadir+'_TRAIN',delimiter=',')
     test_data = np.loadtxt(datadir+'_TEST',delimiter=',')
