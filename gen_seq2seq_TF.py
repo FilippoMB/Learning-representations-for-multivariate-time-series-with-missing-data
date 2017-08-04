@@ -242,10 +242,9 @@ class s2sModel():
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
             
             # TODO: think about dropout, L2 norm and lr decay
-            # L2 regularization (to avoid overfitting and to have a better generalization capacity)
-            reg_loss = 0
-            for tf_var in tf.trainable_variables():
-                reg_loss += tf.reduce_mean(tf.nn.l2_loss(tf_var))
+#            reg_loss = 0
+#            for tf_var in tf.trainable_variables():
+#                reg_loss += tf.reduce_mean(tf.nn.l2_loss(tf_var))
 #                if not ("Bias" in tf_var.name or "Output_" in tf_var.name):
 #                    reg_loss += tf.reduce_mean(tf.nn.l2_loss(tf_var))
             
@@ -288,10 +287,17 @@ class s2sModel():
                        
             self.teach_inf_update_step = optimizer.apply_gradients(zip(teach_inf_clipped_gradients, parameters))
             
-#            # tensorboard
-#            tf.summary.scalar('teach_loss', self.teach_loss)
-#            tf.summary.scalar('inf_loss', self.inf_loss)
-#            tvars = tf.trainable_variables()
-#            for tvar in tvars:
-#                tf.summary.histogram(tvar.name.replace(':','_'), tvar)
-#            self.merged_summary = tf.summary.merge_all()
+            # --------- TENSORBOARD ---------             
+            mean_teach_grads = tf.reduce_mean([tf.reduce_mean(grad) for grad in teach_gradients])
+            mean_inf_grads = tf.reduce_mean([tf.reduce_mean(grad) for grad in inf_gradients])
+            mean_sched_grads = tf.reduce_mean([tf.reduce_mean(grad) for grad in sched_gradients])
+            tf.summary.scalar('mean_teach_grads', mean_teach_grads)
+            tf.summary.scalar('mean_inf_grads', mean_inf_grads)
+            tf.summary.scalar('mean_sched_grads', mean_sched_grads)
+            tf.summary.scalar('teach_loss', self.teach_loss)
+            tf.summary.scalar('inf_loss', self.inf_loss)
+            tf.summary.scalar('sched_loss', self.sched_loss)
+            tvars = tf.trainable_variables()
+            for tvar in tvars:
+                tf.summary.histogram(tvar.name.replace(':','_'), tvar)
+            self.merged_summary = tf.summary.merge_all()

@@ -17,16 +17,16 @@ plot_on = 0
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder", type=str)
-parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
+parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--input_dim", default=1, help="number of variables in the time series", type=int)
-parser.add_argument("--bidirect", default=True, help="use an encoder which is bidirectional", type=bool)
-parser.add_argument("--max_gradient_norm", default=5.0, help="max gradient norm for gradient clipping", type=float) # TODO: check variance (Bengio)
+parser.add_argument("--bidirect", default=False, help="use an encoder which is bidirectional", type=bool)
+parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 parser.add_argument("--EOS", default=0, help="special symbol for start/end of time series", type=float)
-parser.add_argument("--last_layer_state_only", default=False, help="init decoder with last state of only last layer", type=bool)
-parser.add_argument("--reverse_input", default=False, help="fed input reversed for training", type=bool)
-parser.add_argument("--training_mode", default='inf', help="training mode of the decoder", type=str)
+parser.add_argument("--last_layer_state_only", default=True, help="init decoder with last state of only last layer", type=bool)
+parser.add_argument("--reverse_input", default=True, help="fed input reversed for training", type=bool)
+parser.add_argument("--training_mode", default='sched', help="training mode of the decoder", type=str)
 args = parser.parse_args()
 
 config = dict(cell_type = args.cell_type,
@@ -62,11 +62,9 @@ sess = tf.Session()
 G = s2sModel(config)
 sess.run(tf.global_variables_initializer())
 
-#train_writer = tf.summary.FileWriter('/tmp/tensorboard', graph=sess.graph)
-saver = tf.train.Saver()
 # ================= DEBUG =================
 
-#context = sess.run(G.context_vector, {G.encoder_inputs: training_data, G.encoder_inputs_length: [training_data.shape[0] for _ in range(training_data.shape[1])]} )  
+#mean_grad = sess.run(G.mean_grads, {G.encoder_inputs: training_data, G.encoder_inputs_length: [training_data.shape[0] for _ in range(training_data.shape[1])], G.decoder_outputs: training_targets} )  
 
 # ================= TRAINING =================
 
@@ -77,6 +75,8 @@ teach_loss_track = []
 inf_loss_track = []
 min_vs_loss = np.infty
 model_name = "/tmp/tkae_model_"+str(np.random.rand())+".ckpt"
+train_writer = tf.summary.FileWriter('/tmp/tensorboard', graph=sess.graph)
+saver = tf.train.Saver()
 
 try:
     for ep in range(num_epochs):
@@ -99,13 +99,16 @@ try:
                 _, inf_loss, teach_loss = sess.run([G.inf_update_step, G.inf_loss, G.teach_loss], fdtr)     
 
             elif config['training_mode'] == 'sched': # scheduled training
-                _, inf_loss, teach_loss = sess.run([G.sched_update_step, G.inf_loss, G.teach_loss], fdtr)     
+                _, inf_loss, teach_loss = sess.run([G.sched_update_step, G.inf_loss, G.teach_loss], fdtr)    
+            
+            elif config['training_mode'] == 'tinf': # teach+inf
+                _, inf_loss, teach_loss = sess.run([G.teach_inf_update_step, G.inf_loss, G.teach_loss], fdtr)   
 
             else:
                 sys.exit('Invalid training mode')
             
             inf_loss_track.append(inf_loss)
-            teach_loss_track.append(teach_loss) 
+            teach_loss_track.append(teach_loss)
             
         # check how the training is going on the validations set    
         if ep % 100 == 0:   
@@ -122,9 +125,8 @@ try:
             fdvs = {G.encoder_inputs: valid_data,
                     G.encoder_inputs_length: [valid_data.shape[0] for _ in range(valid_data.shape[1])],
                     G.decoder_outputs: valid_targets}
-            inf_outvs, inf_lossvs, teach_outvs, teach_lossvs = sess.run(
-                    [G.inf_outputs, G.inf_loss, G.teach_outputs, G.teach_loss], fdvs)
-#            train_writer.add_summary(summary_, ep)
+            inf_outvs, inf_lossvs, teach_outvs, teach_lossvs, summary = sess.run([G.inf_outputs, G.inf_loss, G.teach_outputs, G.teach_loss, G.merged_summary], fdvs)
+            train_writer.add_summary(summary, ep)
             print('VS: inf_loss=%.3f, teach_loss=%.3f -- TR: min_loss=.%3f'%(inf_lossvs, teach_lossvs, np.min(inf_loss_track)))
             
             # plot a random ts from the validation set
@@ -200,19 +202,19 @@ if plot_on:
     # dim reduction plots
     dim_reduction_plot(ts_context, test_labels)
 
-#train_writer.close()
+train_writer.close()
 sess.close()
 
 
 with open('results','a') as f:
-    f.write('cell_type: '+args.cell_type+
-            ', num_layers: '+str(args.num_layers)+
-            ', hidden_units: '+str(args.hidden_units)+
-            ', bidirect: '+str(args.bidirect)+
-            ', max_gradient_norm: '+str(args.max_gradient_norm)+ 
-            ', learning_rate: '+str(args.learning_rate)+
-            ', last_layer_state_only: '+str(args.last_layer_state_only)+
-            ', reverse_input: '+str(args.reverse_input)+
-            ', training_mode: '+args.training_mode+ 
+    f.write('cell: '+args.cell_type+
+            ', n_layers: '+str(args.num_layers)+
+            ', h_units: '+str(args.hidden_units)+
+            ', bidir: '+str(args.bidirect)+
+            ', max_grad: '+str(args.max_gradient_norm)+ 
+            ', lr: '+str(args.learning_rate)+
+            ', last_state: '+str(args.last_layer_state_only)+
+            ', reverse_inp: '+str(args.reverse_input)+
+            ', tr_mode: '+args.training_mode+ 
             ', time: '+str((time_tr_end-time_tr_start)//60)+
-            ', test MSE: '+str(ts_loss)+'\n')
+            ', MSE: '+str(ts_loss)+'\n')
