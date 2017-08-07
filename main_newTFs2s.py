@@ -2,7 +2,7 @@ from gen_seq2seq_TF import s2sModel
 import numpy as np
 import matplotlib.pyplot as plt
 np.set_printoptions(precision=2)
-import time, sys
+import time
 import tensorflow as tf
 from TS_datasets import getSynthData, getECGData
 from utils import ideal_kernel
@@ -12,7 +12,6 @@ plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--graph_name", default='G1', help="name of the model to be saved", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder", type=str)
 parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
@@ -24,14 +23,13 @@ parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm 
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 parser.add_argument("--last_layer_state_only", dest='last_layer_state_only', action='store_true', help="init decoder with last state of only last layer")
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
-parser.add_argument("--training_mode", default='sched', help="training mode of the decoder", type=str)
+parser.add_argument("--sched_prob", default=0.9, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--w_align", default=0.0001, help="kernel alignment weight", type=float)
 parser.set_defaults(bidirect=False)
 parser.set_defaults(last_layer_state_only=False)
 parser.set_defaults(reverse_input=False)
 args = parser.parse_args()
 
-graph_name = args.graph_name
 config = dict(cell_type = args.cell_type,
               num_layers = args.num_layers,
               hidden_units = args.hidden_units,
@@ -41,9 +39,9 @@ config = dict(cell_type = args.cell_type,
               learning_rate = args.learning_rate,
               last_layer_state_only = args.last_layer_state_only,
               reverse_input = args.reverse_input,
-              training_mode = args.training_mode,
               num_epochs = args.num_epochs,
               batch_size = args.batch_size,
+              sched_prob = args.sched_prob,
               w_align = args.w_align)
 print(config)
 
@@ -51,8 +49,14 @@ print(config)
 #training_data, training_targets, valid_data, valid_targets, test_data, test_targets = getSynthData(
 #        name='Lorentz', tr_data_samples=2000, vs_data_samples=2000, ts_data_samples=2000)
 
-training_data, training_labels, valid_data, valid_labels, test_data, test_labels = getECGData()
+training_data, training_labels, valid_data, valid_labels, test_data, test_labels = getECGData(tr_ratio = 0.5)
 training_targets, valid_targets, test_targets = training_data, valid_data, test_data
+
+
+sort_idx = np.argsort(valid_labels,axis=0)[:,0]
+valid_labels = valid_labels[sort_idx,:]
+valid_data = valid_data[:,sort_idx,:]
+valid_targets = valid_targets[:,sort_idx,:]
 
 # revert time
 if config['reverse_input']:
@@ -63,7 +67,9 @@ if config['reverse_input']:
 # kernel matrix
 K_tr = ideal_kernel(training_labels)
 K_vs = ideal_kernel(valid_labels)
-K_ts = ideal_kernel(test_labels)
+
+plt.matshow(K_vs)
+plt.show(block=False)
 
 # ================= GRAPH =================
 tf.reset_default_graph()
@@ -104,21 +110,9 @@ try:
                     G.decoder_outputs: training_targets[:,(batch)*batch_size:(batch+1)*batch_size,:],
                     G.prior_K: K_tr[(batch)*batch_size:(batch+1)*batch_size, (batch)*batch_size:(batch+1)*batch_size]}  
             
-            if config['training_mode'] == 'teach': # train on teacher
-                _, inf_loss, teach_loss = sess.run([G.teach_update_step, G.inf_loss, G.teach_loss], fdtr) 
-            
-            elif config['training_mode'] == 'inf': # train on inference 
-                _, inf_loss, teach_loss = sess.run([G.inf_update_step, G.inf_loss, G.teach_loss], fdtr)     
-
-            elif config['training_mode'] == 'sched': # scheduled training
-                _, inf_loss, teach_loss = sess.run([G.sched_update_step, G.inf_loss, G.teach_loss], fdtr)    
-            
-            elif config['training_mode'] == 'tinf': # teach+inf
-                _, inf_loss, teach_loss = sess.run([G.teach_inf_update_step, G.inf_loss, G.teach_loss], fdtr)   
-
-            else:
-                sys.exit('Invalid training mode')
-            
+            # scheduled training
+            _, inf_loss, teach_loss = sess.run([G.update_step, G.inf_loss, G.teach_loss], fdtr)    
+                        
             inf_loss_track.append(inf_loss)
             teach_loss_track.append(teach_loss)
             
@@ -126,21 +120,36 @@ try:
         if ep % 100 == 0:            
             print('Ep: {}'.format(ep))
             
+            fdvs = {G.encoder_inputs: valid_data,
+                    G.encoder_inputs_length: [valid_data.shape[0] for _ in range(valid_data.shape[1])],
+                    G.decoder_outputs: valid_targets,
+#                    G.prior_K: K_vs
+                    }
+            inf_outvs, inf_lossvs, teach_outvs, teach_lossvs, vs_code_K = sess.run([G.inf_outputs, G.inf_loss, G.teach_outputs, G.teach_loss,  G.code_K], fdvs) # summary G.merged_summary,
+#            train_writer.add_summary(summary, ep)
+            print('VS: inf_loss=%.3f, teach_loss=%.3f -- TR: min_loss=.%3f'%(inf_lossvs, teach_lossvs, np.min(inf_loss_track)))     
+            
+            plt.matshow(vs_code_K)
+            plt.show(block=False)
+            
+            # Save model yielding best results on validation
+            if inf_lossvs < min_vs_loss:
+                tf.add_to_collection("encoder_inputs",G.encoder_inputs)
+                tf.add_to_collection("encoder_inputs_length",G.encoder_inputs_length)
+                tf.add_to_collection("decoder_outputs",G.decoder_outputs)
+                tf.add_to_collection("inf_outputs",G.inf_outputs)
+                tf.add_to_collection("inf_loss",G.inf_loss)
+                tf.add_to_collection("context_vector",G.context_vector)
+                tf.add_to_collection("code_K",G.code_K)
+                save_path = saver.save(sess, model_name)        
+                
             # DEBUG
 #            fdtr = {G.encoder_inputs: training_data,
 #                    G.encoder_inputs_length: [training_data.shape[0] for _ in range(training_data.shape[1])],
 #                    G.decoder_outputs: training_targets}
 #            inf_loss, teach_loss = sess.run([G.inf_loss, G.teach_loss], fdtr)
 #            print('TR: inf_loss: %.3f, teach_loss: %.3f, min_inf_loss: %.3f'%(inf_loss, teach_loss, np.min(inf_loss_track)))        
-            
-            fdvs = {G.encoder_inputs: valid_data,
-                    G.encoder_inputs_length: [valid_data.shape[0] for _ in range(valid_data.shape[1])],
-                    G.decoder_outputs: valid_targets,
-                    G.prior_K: K_vs}
-            inf_outvs, inf_lossvs, teach_outvs, teach_lossvs, summary = sess.run([G.inf_outputs, G.inf_loss, G.teach_outputs, G.teach_loss, G.merged_summary], fdvs)
-            train_writer.add_summary(summary, ep)
-            print('VS: inf_loss=%.3f, teach_loss=%.3f -- TR: min_loss=.%3f'%(inf_lossvs, teach_lossvs, np.min(inf_loss_track)))
-            
+                        
             # plot a random ts from the validation set
             if plot_on:
                 plot_idx = np.random.randint(low=0,high=valid_targets.shape[1]-1)
@@ -152,17 +161,7 @@ try:
                 plt.plot(teach_pred, label='teach')
                 plt.legend(loc='upper right')
                 plt.show(block=False)  
-            
-            # Save model yielding best results on validation
-            if inf_lossvs < min_vs_loss:
-                tf.add_to_collection("encoder_inputs",G.encoder_inputs)
-                tf.add_to_collection("encoder_inputs_length",G.encoder_inputs_length)
-                tf.add_to_collection("decoder_outputs",G.decoder_outputs)
-                tf.add_to_collection("inf_outputs",G.inf_outputs)
-                tf.add_to_collection("inf_loss",G.inf_loss)
-                tf.add_to_collection("context_vector",G.context_vector)
-                save_path = saver.save(sess, model_name)
-                                        
+                                                    
 except KeyboardInterrupt:
     print('training interrupted')
 
@@ -185,9 +184,9 @@ saver.restore(sess, model_name)
 
 fdts = {G.encoder_inputs: test_data,
         G.encoder_inputs_length: [test_data.shape[0] for _ in range(test_data.shape[1])],
-        G.decoder_outputs: test_targets,
-        G.prior_K: K_ts}
-ts_pred, ts_loss, ts_context = sess.run([G.inf_outputs, G.inf_loss, G.context_vector], fdts)
+        G.decoder_outputs: test_targets
+        }
+ts_loss = sess.run(G.inf_loss, fdts)
 print('Test MSE: %.3f' % (ts_loss))
 
 train_writer.close()
@@ -202,6 +201,6 @@ with open('results','a') as f:
             ', lr: '+str(args.learning_rate)+
             ', last_state: '+str(args.last_layer_state_only)+
             ', reverse_inp: '+str(args.reverse_input)+
-            ', tr_mode: '+args.training_mode+ 
+            ', sched_prob: '+str(args.sched_prob)+ 
             ', time: '+str((time_tr_end-time_tr_start)//60)+
             ', MSE: '+str(ts_loss)+'\n')
