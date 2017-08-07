@@ -27,6 +27,6 @@ def ideal_kernel(labels):
     for i in range(labels.shape[0]):
         k = labels[i] == labels
         k.astype(int)
-        K[:,i] = k
+        K[:,i] = k[:,0]
     return K        
     

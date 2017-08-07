@@ -14,6 +14,7 @@ class s2sModel():
         self.max_gradient_norm = config['max_gradient_norm']
         self.learning_rate = config['learning_rate']
         self.last_layer_state_only = config['last_layer_state_only']
+        self.w_align = config['w_align']
         
         self.EOS = 0
         
@@ -45,7 +46,8 @@ class s2sModel():
         # Everything is time-major
         self.encoder_inputs = tf.placeholder(shape=(None, None, self.input_dim), dtype=tf.float32, name='encoder_inputs')
         self.encoder_inputs_length = tf.placeholder(shape=(None,), dtype=tf.int32, name='encoder_inputs_length')
-        self.decoder_outputs = tf.placeholder(shape=(None, None, self.input_dim), dtype=tf.float32, name='decoder_outputs')        
+        self.decoder_outputs = tf.placeholder(shape=(None, None, self.input_dim), dtype=tf.float32, name='decoder_outputs')     
+        self.prior_K = tf.placeholder(shape=(None, None), dtype=tf.float32, name='prior_K')
 
         
     def _init_cells(self):
@@ -128,7 +130,9 @@ class s2sModel():
         else:
             self.context_vector = tf.concat(to_be_concat,1)
     
-    
+        # inner products of the context vectors
+        self.code_K = tf.tensordot(self.context_vector, tf.transpose(self.context_vector), axes=1)
+        
     def _init_decoder(self):
         with tf.variable_scope("Decoder") as decoder_scope: 
             
@@ -242,6 +246,9 @@ class s2sModel():
             parameters = tf.trainable_variables()
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
             
+            # kernel alignment loss
+            self.k_loss = tf.norm(self.code_K - self.prior_K, ord='fro', axis=[-2,-1])
+            
             # TODO: think about dropout, L2 norm and lr decay
 #            reg_loss = 0
 #            for tf_var in tf.trainable_variables():
@@ -251,7 +258,7 @@ class s2sModel():
             
             
             # --------- TEACHER LOSS ---------
-            self.teach_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.teach_outputs)
+            self.teach_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.teach_outputs) + self.w_align*self.k_loss
             
             # Calculate and clip gradients
             teach_gradients = tf.gradients(self.teach_loss, parameters)
@@ -261,7 +268,7 @@ class s2sModel():
             
             
             # --------- INFERENCE LOSS ---------
-            self.inf_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.inf_outputs)
+            self.inf_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.inf_outputs) + self.w_align*self.k_loss
             
             # Calculate and clip gradients
             inf_gradients = tf.gradients(self.inf_loss, parameters)
@@ -271,7 +278,7 @@ class s2sModel():
             
             
             #  --------- SCHEDULED SAMPLING LOSS ---------
-            self.sched_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.sched_outputs)
+            self.sched_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.sched_outputs) + self.w_align*self.k_loss
                         
             # Calculate and clip gradients
             sched_gradients = tf.gradients(self.sched_loss, parameters)
@@ -280,7 +287,7 @@ class s2sModel():
             self.sched_update_step = optimizer.apply_gradients(zip(sched_clipped_gradients, parameters))
             
             # --------- TEACHER + INFERENCE LOSS ---------
-            self.teach_inf_loss = 0.1*self.teach_loss + self.inf_loss
+            self.teach_inf_loss = 0.1*self.teach_loss + self.inf_loss  + self.w_align*self.k_loss
             
             # Calculate and clip gradients
             teach_inf_gradients = tf.gradients(self.teach_inf_loss, parameters)
@@ -298,6 +305,7 @@ class s2sModel():
             tf.summary.scalar('teach_loss', self.teach_loss)
             tf.summary.scalar('inf_loss', self.inf_loss)
             tf.summary.scalar('sched_loss', self.sched_loss)
+            tf.summary.scalar('k_loss', self.k_loss)
             tvars = tf.trainable_variables()
             for tvar in tvars:
                 tf.summary.histogram(tvar.name.replace(':','_'), tvar)

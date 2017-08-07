@@ -5,10 +5,10 @@ np.set_printoptions(precision=2)
 import time, sys
 import tensorflow as tf
 from TS_datasets import getSynthData, getECGData
+from utils import ideal_kernel
 import argparse
 
 plot_on = 0 
-save_on = 1
 
 # parse input data
 parser = argparse.ArgumentParser()
@@ -25,6 +25,7 @@ parser.add_argument("--learning_rate", default=0.001, help="Adam initial learnin
 parser.add_argument("--last_layer_state_only", dest='last_layer_state_only', action='store_true', help="init decoder with last state of only last layer")
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--training_mode", default='sched', help="training mode of the decoder", type=str)
+parser.add_argument("--w_align", default=0.0001, help="kernel alignment weight", type=float)
 parser.set_defaults(bidirect=False)
 parser.set_defaults(last_layer_state_only=False)
 parser.set_defaults(reverse_input=False)
@@ -42,7 +43,8 @@ config = dict(cell_type = args.cell_type,
               reverse_input = args.reverse_input,
               training_mode = args.training_mode,
               num_epochs = args.num_epochs,
-              batch_size = args.batch_size)
+              batch_size = args.batch_size,
+              w_align = args.w_align)
 print(config)
 
 # ================= DATASET =================
@@ -51,7 +53,6 @@ print(config)
 
 training_data, training_labels, valid_data, valid_labels, test_data, test_labels = getECGData()
 training_targets, valid_targets, test_targets = training_data, valid_data, test_data
-del valid_labels
 
 # revert time
 if config['reverse_input']:
@@ -60,7 +61,9 @@ if config['reverse_input']:
     test_data = test_data[::-1,:,:]
 
 # kernel matrix
-#K = ideal_kernel(training_labels)
+K_tr = ideal_kernel(training_labels)
+K_vs = ideal_kernel(valid_labels)
+K_ts = ideal_kernel(test_labels)
 
 # ================= GRAPH =================
 tf.reset_default_graph()
@@ -70,7 +73,7 @@ sess.run(tf.global_variables_initializer())
 
 # ================= DEBUG =================
 
-#mean_grad = sess.run(G.mean_grads, {G.encoder_inputs: training_data, G.encoder_inputs_length: [training_data.shape[0] for _ in range(training_data.shape[1])], G.decoder_outputs: training_targets} )  
+#k_loss = sess.run(G.k_loss, {G.encoder_inputs: training_data, G.encoder_inputs_length: [training_data.shape[0] for _ in range(training_data.shape[1])], G.decoder_outputs: training_targets, G.prior_K: K} )  
 
 # ================= TRAINING =================
 
@@ -92,12 +95,14 @@ try:
         idx = np.random.permutation(training_data.shape[1])
         training_data = training_data[:,idx,:] 
         training_targets = training_targets[:,idx,:] 
+        K_tr = K_tr[idx,:][:,idx]
         
         for batch in range(max_batches):
             
             fdtr = {G.encoder_inputs: training_data[:,(batch)*batch_size:(batch+1)*batch_size,:],
                     G.encoder_inputs_length: [training_data.shape[0] for _ in range(batch_size)],
-                    G.decoder_outputs: training_targets[:,(batch)*batch_size:(batch+1)*batch_size,:]}  
+                    G.decoder_outputs: training_targets[:,(batch)*batch_size:(batch+1)*batch_size,:],
+                    G.prior_K: K_tr[(batch)*batch_size:(batch+1)*batch_size, (batch)*batch_size:(batch+1)*batch_size]}  
             
             if config['training_mode'] == 'teach': # train on teacher
                 _, inf_loss, teach_loss = sess.run([G.teach_update_step, G.inf_loss, G.teach_loss], fdtr) 
@@ -130,7 +135,8 @@ try:
             
             fdvs = {G.encoder_inputs: valid_data,
                     G.encoder_inputs_length: [valid_data.shape[0] for _ in range(valid_data.shape[1])],
-                    G.decoder_outputs: valid_targets}
+                    G.decoder_outputs: valid_targets,
+                    G.prior_K: K_vs}
             inf_outvs, inf_lossvs, teach_outvs, teach_lossvs, summary = sess.run([G.inf_outputs, G.inf_loss, G.teach_outputs, G.teach_loss, G.merged_summary], fdvs)
             train_writer.add_summary(summary, ep)
             print('VS: inf_loss=%.3f, teach_loss=%.3f -- TR: min_loss=.%3f'%(inf_lossvs, teach_lossvs, np.min(inf_loss_track)))
@@ -179,7 +185,8 @@ saver.restore(sess, model_name)
 
 fdts = {G.encoder_inputs: test_data,
         G.encoder_inputs_length: [test_data.shape[0] for _ in range(test_data.shape[1])],
-        G.decoder_outputs: test_targets}
+        G.decoder_outputs: test_targets,
+        G.prior_K: K_ts}
 ts_pred, ts_loss, ts_context = sess.run([G.inf_outputs, G.inf_loss, G.context_vector], fdts)
 print('Test MSE: %.3f' % (ts_loss))
 

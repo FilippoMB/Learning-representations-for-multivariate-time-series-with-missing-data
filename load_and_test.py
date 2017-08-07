@@ -8,7 +8,7 @@ from utils import dim_reduction_plot
 training_data, training_labels, valid_data, valid_labels, test_data, test_labels = getECGData()
 training_targets, valid_targets, test_targets = training_data, valid_data, test_data
 
-graph_name = "20170807-102417"
+graph_name = "20170807-164052"
 
 with tf.Session() as sess:
     
