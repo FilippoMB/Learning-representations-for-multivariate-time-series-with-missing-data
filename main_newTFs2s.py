@@ -9,21 +9,21 @@ from scipy.stats.stats import pearsonr
 from utils import dim_reduction_plot
 import argparse
 
-# Hyperparams
-batch_size = 250
-num_epochs = 5000
 plot_on = 0 
+save_on = 1
 
 # parse input data
 parser = argparse.ArgumentParser()
+parser.add_argument("--graph_name", default='G1', help="name of the model to be saved", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder", type=str)
 parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--input_dim", default=1, help="number of variables in the time series", type=int)
+parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
+parser.add_argument("--batch_size", default=250, help="number of samples in each batch", type=int)
 parser.add_argument("--bidirect", dest='bidirect', action='store_true', help="use an encoder which is bidirectional")
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
-parser.add_argument("--EOS", default=0, help="special symbol for start/end of time series", type=float)
 parser.add_argument("--last_layer_state_only", dest='last_layer_state_only', action='store_true', help="init decoder with last state of only last layer")
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--training_mode", default='sched', help="training mode of the decoder", type=str)
@@ -32,6 +32,7 @@ parser.set_defaults(last_layer_state_only=False)
 parser.set_defaults(reverse_input=False)
 args = parser.parse_args()
 
+graph_name = args.graph_name
 config = dict(cell_type = args.cell_type,
               num_layers = args.num_layers,
               hidden_units = args.hidden_units,
@@ -39,10 +40,11 @@ config = dict(cell_type = args.cell_type,
               bidirect = args.bidirect,
               max_gradient_norm = args.max_gradient_norm, 
               learning_rate = args.learning_rate,
-              EOS = args.EOS,
               last_layer_state_only = args.last_layer_state_only,
               reverse_input = args.reverse_input,
-              training_mode = args.training_mode)
+              training_mode = args.training_mode,
+              num_epochs = args.num_epochs,
+              batch_size = args.batch_size)
 print(config)
 
 # ================= DATASET =================
@@ -72,6 +74,7 @@ sess.run(tf.global_variables_initializer())
 # ================= TRAINING =================
 
 # initialize training stuff
+batch_size = config['batch_size']
 time_tr_start = time.time()
 max_batches = training_data.shape[1]//batch_size
 teach_loss_track = []
@@ -82,7 +85,7 @@ train_writer = tf.summary.FileWriter('/tmp/tensorboard', graph=sess.graph)
 saver = tf.train.Saver()
 
 try:
-    for ep in range(num_epochs):
+    for ep in range(config['num_epochs']):
         
         # shuffle training data
         idx = np.random.permutation(training_data.shape[1])
@@ -146,6 +149,12 @@ try:
             
             # Save model yielding best results on validation
             if inf_lossvs < min_vs_loss:
+                tf.add_to_collection("encoder_inputs",G.encoder_inputs)
+                tf.add_to_collection("encoder_inputs_length",G.encoder_inputs_length)
+                tf.add_to_collection("decoder_outputs",G.decoder_outputs)
+                tf.add_to_collection("inf_outputs",G.inf_outputs)
+                tf.add_to_collection("inf_loss",G.inf_loss)
+                tf.add_to_collection("context_vector",G.context_vector)
                 save_path = saver.save(sess, model_name)
                                         
 
@@ -159,8 +168,17 @@ if plot_on:
     plt.plot(inf_loss_track, label='inf_loss_track')
     plt.legend(loc='upper right')
     plt.show(block=False)
+    
+    
 time_tr_end = time.time()
 print('Tot training time: {}'.format( (time_tr_end-time_tr_start)//60))
+
+#if save_on:
+#    if graph_name == None:
+#        graph_name = "/tmp/metagraph/graph_"+str(time.strftime("%Y%m%d-%H%M%S"))+".meta"
+#    else:
+#        graph_name = "/tmp/metagraph/graph_"+graph_name+".meta"
+#    meta_graph_def = tf.train.export_meta_graph(filename=graph_name)
 
 # ================= TEST =================
 print('********** TEST **********')

@@ -13,8 +13,9 @@ class s2sModel():
         self.bidirect = config['bidirect']
         self.max_gradient_norm = config['max_gradient_norm']
         self.learning_rate = config['learning_rate']
-        self.EOS = config['EOS']
         self.last_layer_state_only = config['last_layer_state_only']
+        
+        self.EOS = 0
         
         self._make_graph()
         
