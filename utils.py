@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from sklearn.decomposition import TruncatedSVD
 from sklearn.manifold import TSNE
+import numpy as np
 
 def dim_reduction_plot(data, label):
   
@@ -19,3 +20,13 @@ def dim_reduction_plot(data, label):
   plt.title('tSNE')
   plt.show(block=False)
   return
+
+def ideal_kernel(labels):
+    K = np.zeros([labels.shape[0], labels.shape[0]])
+    
+    for i in range(labels.shape[0]):
+        k = labels[i] == labels
+        k.astype(int)
+        K[:,i] = k
+    return K        
+    

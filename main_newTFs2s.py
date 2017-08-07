@@ -5,8 +5,6 @@ np.set_printoptions(precision=2)
 import time, sys
 import tensorflow as tf
 from TS_datasets import getSynthData, getECGData
-from scipy.stats.stats import pearsonr
-from utils import dim_reduction_plot
 import argparse
 
 plot_on = 0 
@@ -53,13 +51,16 @@ print(config)
 
 training_data, training_labels, valid_data, valid_labels, test_data, test_labels = getECGData()
 training_targets, valid_targets, test_targets = training_data, valid_data, test_data
-del training_labels, valid_labels
+del valid_labels
 
 # revert time
 if config['reverse_input']:
     training_data = training_data[::-1,:,:]
     valid_data = valid_data[::-1,:,:]
     test_data = test_data[::-1,:,:]
+
+# kernel matrix
+#K = ideal_kernel(training_labels)
 
 # ================= GRAPH =================
 tf.reset_default_graph()
@@ -80,7 +81,7 @@ max_batches = training_data.shape[1]//batch_size
 teach_loss_track = []
 inf_loss_track = []
 min_vs_loss = np.infty
-model_name = "/tmp/tkae_model_"+str(time.strftime("%Y%m%d-%H%M%S"))+".ckpt"
+model_name = "/tmp/tkae_models/m_"+str(time.strftime("%Y%m%d-%H%M%S"))+".ckpt"
 train_writer = tf.summary.FileWriter('/tmp/tensorboard', graph=sess.graph)
 saver = tf.train.Saver()
 
@@ -117,8 +118,7 @@ try:
             teach_loss_track.append(teach_loss)
             
         # check how the training is going on the validations set    
-        if ep % 100 == 0:   
-            
+        if ep % 100 == 0:            
             print('Ep: {}'.format(ep))
             
             # DEBUG
@@ -157,7 +157,6 @@ try:
                 tf.add_to_collection("context_vector",G.context_vector)
                 save_path = saver.save(sess, model_name)
                                         
-
 except KeyboardInterrupt:
     print('training interrupted')
 
@@ -169,16 +168,8 @@ if plot_on:
     plt.legend(loc='upper right')
     plt.show(block=False)
     
-    
 time_tr_end = time.time()
-print('Tot training time: {}'.format( (time_tr_end-time_tr_start)//60))
-
-#if save_on:
-#    if graph_name == None:
-#        graph_name = "/tmp/metagraph/graph_"+str(time.strftime("%Y%m%d-%H%M%S"))+".meta"
-#    else:
-#        graph_name = "/tmp/metagraph/graph_"+graph_name+".meta"
-#    meta_graph_def = tf.train.export_meta_graph(filename=graph_name)
+print('Tot training time: {}'.format((time_tr_end-time_tr_start)//60) )
 
 # ================= TEST =================
 print('********** TEST **********')
@@ -192,40 +183,8 @@ fdts = {G.encoder_inputs: test_data,
 ts_pred, ts_loss, ts_context = sess.run([G.inf_outputs, G.inf_loss, G.context_vector], fdts)
 print('Test MSE: %.3f' % (ts_loss))
 
-# plot 1
-if plot_on:
-    target = test_targets[:,0,0]
-    pred = ts_pred[:-1,0,0]
-    plt.plot(target, label='target')
-    plt.plot(pred, label='predicted')
-    plt.legend(loc='upper right')
-    plt.show(block=False)
-    print('Corr: %.3f' % ( pearsonr(target,pred)[0]) )
-
-    # plot 2
-    target = test_targets[:,1,0]
-    pred = ts_pred[:-1,1,0]
-    plt.plot(target, label='target')
-    plt.plot(pred, label='predicted')
-    plt.legend(loc='upper right')
-    plt.show(block=False)
-    print('Corr: %.3f' % ( pearsonr(target,pred)[0]) )
-
-    # plot 3
-    target = test_targets[:,2,0]
-    pred = ts_pred[:-1,2,0]
-    plt.plot(target, label='target')
-    plt.plot(pred, label='predicted')
-    plt.legend(loc='upper right')
-    plt.show(block=False)
-    print('Corr: %.3f' % ( pearsonr(target,pred)[0]) )
-
-    # dim reduction plots
-    dim_reduction_plot(ts_context, test_labels)
-
 train_writer.close()
 sess.close()
-
 
 with open('results','a') as f:
     f.write('cell: '+args.cell_type+
