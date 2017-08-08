@@ -99,13 +99,10 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
     return training_data, training_targets, valid_data, valid_targets, test_data, test_targets
 
 # ========== ECG TS DATA ==========
-def getECGData(tr_ratio = 0, rnd_order = 0):
+def getECGData(tr_ratio = 0, rnd_order = False):
     datadir = 'ECG5000/ECG5000'
     training_data = np.loadtxt(datadir+'_TRAIN',delimiter=',')
     test_data = np.loadtxt(datadir+'_TEST',delimiter=',')
-    
-#    print(sum(training_data[:,0]==1),sum(training_data[:,0]==2),sum(training_data[:,0]==3),sum(training_data[:,0]==4),sum(training_data[:,0]==5))
-#    print(sum(test_data[:,0]==1),sum(test_data[:,0]==2),sum(test_data[:,0]==3),sum(test_data[:,0]==4),sum(test_data[:,0]==5))
 
     if tr_ratio == 0: 
         training_data, test_data = np.expand_dims(test_data,-1), np.expand_dims(training_data,-1) # switch training and test
