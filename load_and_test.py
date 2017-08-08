@@ -6,7 +6,7 @@ from utils import dim_reduction_plot, ideal_kernel
 import numpy as np
 
 # load data
-_, _, _, _, test_data, test_labels = getECGData()
+_, _, _, _, test_data, test_labels = getECGData(tr_ratio = 0.5)
 test_targets = test_data
 sort_idx = np.argsort(test_labels,axis=0)[:,0]
 test_labels = test_labels[sort_idx,:]
@@ -17,7 +17,7 @@ K_ts = ideal_kernel(test_labels)
 plt.matshow(K_ts)
 plt.show(block=False)
 
-graph_name = "20170808-002630"
+graph_name = "20170808-005344"
 
 sess = tf.Session()
     

@@ -99,7 +99,7 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
     return training_data, training_targets, valid_data, valid_targets, test_data, test_targets
 
 # ========== ECG TS DATA ==========
-def getECGData(tr_ratio = 0):
+def getECGData(tr_ratio = 0, rnd_order = 0):
     datadir = 'ECG5000/ECG5000'
     training_data = np.loadtxt(datadir+'_TRAIN',delimiter=',')
     test_data = np.loadtxt(datadir+'_TEST',delimiter=',')
@@ -123,7 +123,10 @@ def getECGData(tr_ratio = 0):
         # split
         num_ts = data.shape[1]
         ind_cut = int(tr_ratio*num_ts)
-        rnd_ind = np.random.permutation(num_ts)
+        if rnd_order:
+            rnd_ind = np.random.permutation(num_ts)
+        else:
+            rnd_ind = np.arange(num_ts)
         training_data = data[1:,rnd_ind[:ind_cut],:]
         training_labels = data[0,rnd_ind[:ind_cut],:]
         test_data = data[1:,rnd_ind[ind_cut:],:]
