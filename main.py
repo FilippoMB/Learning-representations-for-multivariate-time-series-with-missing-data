@@ -4,35 +4,33 @@ import matplotlib.pyplot as plt
 np.set_printoptions(precision=2)
 import time
 import tensorflow as tf
-from TS_datasets import getSynthData, getECGData
-from utils import ideal_kernel
-import argparse
+from TS_datasets import getSynthData, getECGData, getJapData
+import argparse, sys
 
-plot_on = 0
+plot_on = 1
 
 # parse input data
 parser = argparse.ArgumentParser()
+parser.add_argument("--dataset_id", default='SYNTH', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
-parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
+parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
-parser.add_argument("--input_dim", default=1, help="number of variables in the time series", type=int)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=250, help="number of samples in each batch", type=int)
 parser.add_argument("--bidirect", dest='bidirect', action='store_true', help="use an encoder which is bidirectional")
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
-parser.add_argument("--decoder_init", default='zero', help="init decoder with last state of only last layer (last, zero, all)", type=str)
+parser.add_argument("--decoder_init", default='all', help="init decoder with last state of only last layer (last, zero, all)", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--sched_prob", default=0.9, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--w_align", default=0.0, help="kernel alignment weight", type=float)
-parser.set_defaults(bidirect=False)
+parser.set_defaults(bidirect=True)
 parser.set_defaults(reverse_input=False)
 args = parser.parse_args()
 
 config = dict(cell_type = args.cell_type,
               num_layers = args.num_layers,
               hidden_units = args.hidden_units,
-              input_dim = args.input_dim,
               bidirect = args.bidirect,
               max_gradient_norm = args.max_gradient_norm, 
               learning_rate = args.learning_rate,
@@ -45,33 +43,34 @@ config = dict(cell_type = args.cell_type,
 print(config)
 
 # ================= DATASET =================
-#training_data, training_targets, valid_data, valid_targets, test_data, test_targets = getSynthData(
-#        name='Lorentz', tr_data_samples=2000, vs_data_samples=2000, ts_data_samples=2000)
+if args.dataset_id == 'SYNTH':
+    (train_data, _, train_len, train_targets, K_tr,
+        valid_data, _, valid_len, valid_targets, K_vs,
+        test_data, _, test_len, test_targets, _) = getSynthData(name='Lorentz', 
+                                                                tr_data_samples=2000, 
+                                                                vs_data_samples=2000, 
+                                                                ts_data_samples=2000)
+elif args.dataset_id == 'ECG':
+    (train_data, _, train_len, train_targets, K_tr,
+        valid_data, _, valid_len, valid_targets, K_vs,
+        test_data, _, test_len, test_targets, _) = getECGData(tr_ratio = 0)
+       
+elif args.dataset_id == 'JAP':        
+    (train_data, _, train_len, train_targets, K_tr,
+        valid_data, _, valid_len, valid_targets, K_vs,
+        test_data, _, test_len, test_targets, _) = getJapData()
+    
+else:
+    sys.exit('Invalid dataset_id')
 
-training_data, training_labels, valid_data, valid_labels, test_data, test_labels = getECGData(tr_ratio = 0)
-training_targets, valid_targets, test_targets = training_data, valid_data, test_data
-
-print('--- Processing dataset Tr:{}, Vs:{}, Ts:{}'.format(training_data.shape, valid_data.shape, test_data.shape) )
-
-if plot_on:
-    sort_idx = np.argsort(valid_labels,axis=0)[:,0]
-    valid_labels = valid_labels[sort_idx,:]
-    valid_data = valid_data[:,sort_idx,:]
-    valid_targets = valid_targets[:,sort_idx,:]
+config['input_dim'] = train_data.shape[2]
+print('\n**** Processing {}: Tr{}, Vs{}, Ts{} ****\n'.format(args.dataset_id, train_data.shape, valid_data.shape, test_data.shape))
 
 # revert time
 if config['reverse_input']:
-    training_data = training_data[::-1,:,:]
+    train_data = train_data[::-1,:,:]
     valid_data = valid_data[::-1,:,:]
     test_data = test_data[::-1,:,:]
-
-# kernel matrix
-K_tr = ideal_kernel(training_labels)
-K_vs = ideal_kernel(valid_labels)
-
-if plot_on:
-    plt.matshow(K_vs)
-    plt.show(block=False)
 
 # ================= GRAPH =================
 tf.reset_default_graph() # needed when working with iPython
@@ -80,15 +79,16 @@ G = s2s_ts_Model(config)
 sess.run(tf.global_variables_initializer())
 
 # ================= DEBUG =================
-
-#k_loss = sess.run(G.k_loss, {G.encoder_inputs: training_data, G.encoder_inputs_length: [training_data.shape[0] for _ in range(training_data.shape[1])], G.decoder_outputs: training_targets, G.prior_K: K} )  
-
+#fd = {G.encoder_inputs: train_data, G.encoder_inputs_length: train_len, G.decoder_outputs: train_targets, G.prior_K: K_tr}
+#teach_out, inf_out, sched_out,e_states = sess.run([G.teach_outputs, G.inf_outputs, G.sched_outputs,G.encoder_states], fd )  
+#
+#raise
 # ================= TRAINING =================
 
 # initialize training stuff
 batch_size = config['batch_size']
 time_tr_start = time.time()
-max_batches = training_data.shape[1]//batch_size
+max_batches = train_data.shape[1]//batch_size
 teach_loss_track = []
 inf_loss_track = []
 min_vs_loss = np.infty
@@ -100,30 +100,29 @@ try:
     for ep in range(config['num_epochs']):
         
         # shuffle training data
-        idx = np.random.permutation(training_data.shape[1])
-        training_data = training_data[:,idx,:] 
-        training_targets = training_targets[:,idx,:] 
+        idx = np.random.permutation(train_data.shape[1])
+        train_data = train_data[:,idx,:] 
+        train_targets = train_targets[:,idx,:] 
         K_tr = K_tr[idx,:][:,idx]
         
         for batch in range(max_batches):
             
-            fdtr = {G.encoder_inputs: training_data[:,(batch)*batch_size:(batch+1)*batch_size,:],
-                    G.encoder_inputs_length: [training_data.shape[0] for _ in range(batch_size)],
-                    G.decoder_outputs: training_targets[:,(batch)*batch_size:(batch+1)*batch_size,:],
+            fdtr = {G.encoder_inputs: train_data[:,(batch)*batch_size:(batch+1)*batch_size,:],
+                    G.encoder_inputs_length: train_len[(batch)*batch_size:(batch+1)*batch_size],
+                    G.decoder_outputs: train_targets[:,(batch)*batch_size:(batch+1)*batch_size,:],
                     G.prior_K: K_tr[(batch)*batch_size:(batch+1)*batch_size, (batch)*batch_size:(batch+1)*batch_size]}  
             
-            # scheduled training
             _, inf_loss, teach_loss = sess.run([G.update_step, G.inf_loss, G.teach_loss], fdtr)    
                         
             inf_loss_track.append(inf_loss)
             teach_loss_track.append(teach_loss)
             
-        # check how the training is going on the validations set    
+        # check training progress on the validations set    
         if ep % 100 == 0:            
             print('Ep: {}'.format(ep))
             
             fdvs = {G.encoder_inputs: valid_data,
-                    G.encoder_inputs_length: [valid_data.shape[0] for _ in range(valid_data.shape[1])],
+                    G.encoder_inputs_length: valid_len,
                     G.decoder_outputs: valid_targets,
 #                    G.prior_K: K_vs
                     }
@@ -171,13 +170,13 @@ time_tr_end = time.time()
 print('Tot training time: {}'.format((time_tr_end-time_tr_start)//60) )
 
 # ================= TEST =================
-print('********** TEST **********')
+print('************ TEST ************ \n>>restoring from:'+model_name+'<<')
 
 sess.run(tf.global_variables_initializer()) # be sure that correct weights are loaded
 saver.restore(sess, model_name)
 
 fdts = {G.encoder_inputs: test_data,
-        G.encoder_inputs_length: [test_data.shape[0] for _ in range(test_data.shape[1])],
+        G.encoder_inputs_length: test_len,
         G.decoder_outputs: test_targets
         }
 ts_loss = sess.run(G.inf_loss, fdts)

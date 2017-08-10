@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow.contrib.rnn import LSTMCell, BasicRNNCell, GRUCell, LSTMStateTuple, MultiRNNCell
 import tensorflow.contrib.seq2seq as seq2seq
 from tensorflow.python.layers import core as layers_core
+import sys
 
 class s2s_ts_Model():
     
@@ -129,7 +130,7 @@ class s2s_ts_Model():
             self.decoder_init_state = self.encoder_states[::-1]     
         
         else:
-            raise            
+            sys.exit('Invalid decoder initialization')            
     
     
     def _get_context(self):
@@ -261,8 +262,11 @@ class s2s_ts_Model():
             parameters = tf.trainable_variables()
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
             
-            # kernel alignment loss
-            self.k_loss = tf.norm(self.code_K - self.prior_K, ord='fro', axis=[-2,-1])
+            # kernel alignment loss with normalized Frobenius norm
+            code_K_norm = self.code_K/tf.norm(self.code_K, ord='fro', axis=[-2,-1])
+            prior_K_norm = self.prior_K/tf.norm(self.prior_K, ord='fro', axis=[-2,-1])
+            self.k_loss = tf.norm(code_K_norm - prior_K_norm, ord='fro', axis=[-2,-1])
+#            self.k_loss = tf.norm(self.code_K - self.prior_K, ord='fro', axis=[-2,-1])
             
             # TODO: think about dropout, L2 norm and lr decay
 #            reg_loss = 0
@@ -278,8 +282,10 @@ class s2s_ts_Model():
             # inference loss
             self.inf_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.inf_outputs)
                        
-            #  --------- SCHEDULED SAMPLING LOSS ---------
+            #  scheduled sampling loss
             self.sched_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.sched_outputs) 
+            
+            # ============= TOT LOSS =============
             self.tot_loss = self.sched_loss + self.w_align*self.k_loss
                         
             # Calculate and clip gradients
@@ -298,7 +304,7 @@ class s2s_ts_Model():
 #                       
 #            self.teach_inf_update_step = optimizer.apply_gradients(zip(teach_inf_clipped_gradients, parameters))
             
-            # --------- TENSORBOARD ---------             
+            # ============= TENSORBOARD =============             
             mean_grads = tf.reduce_mean([tf.reduce_mean(grad) for grad in gradients])
             tf.summary.scalar('mean_grads', mean_grads)
             tf.summary.scalar('teach_loss', self.teach_loss)
