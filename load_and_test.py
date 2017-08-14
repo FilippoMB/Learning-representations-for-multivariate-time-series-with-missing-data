@@ -11,12 +11,12 @@ block_flag = True
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='SYNTH', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
-parser.add_argument("--graph_name", default="20170810-192437", help="name of the file to be loaded", type=str)
+parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
+parser.add_argument("--graph_name", default="20170814-000240", help="name of the file to be loaded", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--dim_red", dest='dim_red', action='store_true', help="compute PCA and tSNE")
 parser.add_argument("--plot_on", dest='plot_on', action='store_true', help="make plots")
-parser.set_defaults(reverse_input=False)
+parser.set_defaults(reverse_input=True)
 parser.set_defaults(dim_red=False)
 parser.set_defaults(plot_on=True)
 args = parser.parse_args()
@@ -38,7 +38,7 @@ elif args.dataset_id == 'ECG':
 elif args.dataset_id == 'JAP':        
     (train_data, train_labels, _, _, _,
         _, _, _, _, _,
-        test_data, test_labels, _, test_targets, K_ts) = getJapData()
+        test_data, test_labels, _, test_targets, K_ts) = getJapData(kernel='TCK',inp=None,zscore=True)
     
 else:
     sys.exit('Invalid dataset_id')
@@ -94,17 +94,21 @@ sess.close()
 # =============== DATA ANALYSIS ===============
 print('Test MSE: %.3f' % (ts_loss))
 
-# plot kernel code
 if args.plot_on:
+    
+    # plot kernel code
     plt.matshow(ts_code_K,cmap='binary_r')
     plt.title('code K')
     plt.gca().axes.get_xaxis().set_ticks([])
     plt.gca().axes.get_yaxis().set_ticks([])
     plt.show(block=block_flag)
+    
+    plt_idx1 = np.random.randint(low=0, high=test_data.shape[1]-1, size=3)
+    plt_idx2 = np.random.randint(low=0, high=test_data.shape[2]-1, size=3)
 
     # plot ts1
-    target = test_targets[:,0,0]
-    pred = ts_pred[:-1,0,0]
+    target = test_targets[:,plt_idx1[0],plt_idx2[0]]
+    pred = ts_pred[:-1,plt_idx1[0],plt_idx2[0]]
     plt.plot(target, label='target')
     plt.plot(pred, label='predicted')
     plt.legend(loc='upper right')
@@ -112,8 +116,8 @@ if args.plot_on:
     print('Corr: %.3f' % ( pearsonr(target,pred)[0]) )
     
     # plot ts2
-    target = test_targets[:,1,0]
-    pred = ts_pred[:-1,1,0]
+    target = test_targets[:,plt_idx1[1],plt_idx2[1]]
+    pred = ts_pred[:-1,plt_idx1[1],plt_idx2[1]]
     plt.plot(target, label='target')
     plt.plot(pred, label='predicted')
     plt.legend(loc='upper right')
@@ -121,8 +125,8 @@ if args.plot_on:
     print('Corr: %.3f' % ( pearsonr(target,pred)[0]) )
     
     # plot ts3
-    target = test_targets[:,2,0]
-    pred = ts_pred[:-1,2,0]
+    target = test_targets[:,plt_idx1[2],plt_idx2[2]]
+    pred = ts_pred[:-1,plt_idx1[2],plt_idx2[2]]
     plt.plot(target, label='target')
     plt.plot(pred, label='predicted')
     plt.legend(loc='upper right')
@@ -136,5 +140,5 @@ if args.dim_red:
 # kNN classification on the codes
 neigh = KNeighborsClassifier(n_neighbors=1)
 neigh.fit(tr_context, train_labels[:,0])
-accuracy = neigh.score(ts_context, test_labels)
+accuracy = neigh.score(ts_context, test_labels[:,0])
 print('kNN accuarcy: {}'.format(accuracy))
