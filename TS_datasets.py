@@ -176,7 +176,7 @@ def getECGData(tr_ratio = 0, rnd_order = False):
 
 
 # ========== JAP VOWELS DATA ==========
-def getJapData(kernel='TCK', inp='zero', zscore=True):
+def getJapData(kernel='TCK', inp='zero'):
     jap_data = scipy.io.loadmat('JapaneseVowels/TCK_data.mat')
     
     # ------ train -------
@@ -228,15 +228,7 @@ def getJapData(kernel='TCK', inp='zero', zscore=True):
             test_data[:,:,i] = imp.fit_transform(test_data[:,:,i])
         
     test_labels = np.asarray(jap_data['Yte'])
-    
-    # standardize the data
-    if zscore:
-        for i in range(train_data.shape[1]):
-#            train_data[:,i,:] = preprocessing.scale(train_data[:,i,:], axis=1)
-#            test_data[:,i,:] = preprocessing.scale(test_data[:,i,:], axis=1)
-            train_data[:,i,:] = preprocessing.scale(train_data[:,i,:], axis=0)
-            test_data[:,i,:] = preprocessing.scale(test_data[:,i,:], axis=0)
-            
+                
     # valid == train   
     valid_data = train_data
     valid_labels = train_labels

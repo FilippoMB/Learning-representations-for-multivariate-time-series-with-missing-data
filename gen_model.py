@@ -277,16 +277,13 @@ class s2s_ts_Model():
             
             
             # teacher loss
-#            self.teach_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.teach_outputs)
-            self.teach_loss = tf.reduce_mean(tf.pow(decoder_train_outputs-self.teach_outputs,2))
+            self.teach_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.teach_outputs)
                                  
             # inference loss
-#            self.inf_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.inf_outputs)
-            self.inf_loss = tf.reduce_mean(tf.pow(decoder_train_outputs-self.inf_outputs,2))
+            self.inf_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.inf_outputs)
                        
             #  scheduled sampling loss
-#            self.sched_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.sched_outputs)
-            self.sched_loss = tf.reduce_mean(tf.pow(decoder_train_outputs-self.sched_outputs,2))
+            self.sched_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.sched_outputs)
             
             # ============= TOT LOSS =============
             self.tot_loss = self.sched_loss + self.w_align*self.k_loss
