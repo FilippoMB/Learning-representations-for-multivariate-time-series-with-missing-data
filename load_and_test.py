@@ -12,12 +12,12 @@ block_flag = True
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
-parser.add_argument("--graph_name", default="20170815-101750", help="name of the file to be loaded", type=str)
+parser.add_argument("--graph_name", default="20170815-134125", help="name of the file to be loaded", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--dim_red", dest='dim_red', action='store_true', help="compute PCA and tSNE")
 parser.add_argument("--plot_on", dest='plot_on', action='store_true', help="make plots")
 parser.set_defaults(reverse_input=True)
-parser.set_defaults(dim_red=False)
+parser.set_defaults(dim_red=True)
 parser.set_defaults(plot_on=True)
 args = parser.parse_args()
 
@@ -80,8 +80,7 @@ code_K = tf.get_collection("code_K")[0]
 
 # get context vectors from training data
 fdtr = {encoder_inputs: train_data,
-        encoder_inputs_length: train_len,
-        }
+        encoder_inputs_length: train_len}
 tr_context2 = sess.run(context_vector, fdtr)
 
 # get context vectors and predictions from test data

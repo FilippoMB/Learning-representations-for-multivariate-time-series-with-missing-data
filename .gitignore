@@ -1,3 +1,4 @@
 *.pyc
 results
 xxy.py
+.idea/

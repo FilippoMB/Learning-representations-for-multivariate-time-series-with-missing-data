@@ -294,10 +294,13 @@ def getJapDataS(kernel='TCK'):
         K_tr = jap_data['Ktrtr']
         K_vs = K_tr
         K_ts = jap_data['Ktete']
-    else:
+    elif kernel=='ideal':
         K_tr = ideal_kernel(train_labels)
         K_vs = ideal_kernel(valid_labels)
         K_ts = ideal_kernel(test_labels)
+    else:
+        K_tr, K_vs = np.zeros_like(jap_data['Ktrtr'])
+        K_ts = np.zeros_like(jap_data['Ktete'])
     
     return (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
