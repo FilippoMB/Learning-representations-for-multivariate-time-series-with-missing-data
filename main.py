@@ -6,6 +6,7 @@ import time
 import tensorflow as tf
 from TS_datasets import getSynthData, getECGData, getJapData
 import argparse, sys
+from sklearn.neighbors import KNeighborsClassifier
 
 plot_on = 0
 
@@ -14,8 +15,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
 parser.add_argument("--cell_type", default='GRU', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
 parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
-parser.add_argument("--hidden_units", default=10, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
-parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
+parser.add_argument("--hidden_units", default=20, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
+parser.add_argument("--num_epochs", default=1000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=50, help="number of samples in each batch", type=int)
 parser.add_argument("--bidirect", dest='bidirect', action='store_true', help="use an encoder which is bidirectional")
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
@@ -24,8 +25,8 @@ parser.add_argument("--decoder_init", default='all', help="init decoder with las
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--sched_prob", default=0.9, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--w_align", default=0, help="kernel alignment weight", type=float)
-parser.set_defaults(bidirect=True)
-parser.set_defaults(reverse_input=False)
+parser.set_defaults(bidirect=False)
+parser.set_defaults(reverse_input=True)
 args = parser.parse_args()
 
 config = dict(cell_type = args.cell_type,
@@ -44,21 +45,21 @@ print(config)
 
 # ================= DATASET =================
 if args.dataset_id == 'SYNTH':
-    (train_data, _, train_len, train_targets, K_tr,
+    (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, _, valid_len, valid_targets, K_vs,
-        test_data, _, test_len, test_targets, _) = getSynthData(name='Lorentz', 
+        test_data, test_labels, test_len, test_targets, _) = getSynthData(name='Lorentz', 
                                                                 tr_data_samples=2000, 
                                                                 vs_data_samples=2000, 
                                                                 ts_data_samples=2000)
 elif args.dataset_id == 'ECG':
-    (train_data, _, train_len, train_targets, K_tr,
+    (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, _, valid_len, valid_targets, K_vs,
-        test_data, _, test_len, test_targets, _) = getECGData(tr_ratio = 0.4)
+        test_data, test_labels, test_len, test_targets, _) = getECGData(tr_ratio = 0.4)
        
 elif args.dataset_id == 'JAP':        
-    (train_data, _, train_len, train_targets, K_tr,
+    (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, _, valid_len, valid_targets, K_vs,
-        test_data, _, test_len, test_targets, _) = getJapData(kernel='TCK',inp=None)
+        test_data, test_labels, test_len, test_targets, _) = getJapData(kernel='TCK',inp=None)
     
 else:
     sys.exit('Invalid dataset_id')
@@ -173,15 +174,26 @@ print('Tot training time: {}'.format((time_tr_end-time_tr_start)//60) )
 # ================= TEST =================
 print('************ TEST ************ \n>>restoring from:'+model_name+'<<')
 
-sess.run(tf.global_variables_initializer()) # be sure that correct weights are loaded
+
+#sess.run(tf.global_variables_initializer()) # be sure that correct weights are loaded
+tf.reset_default_graph()
 saver.restore(sess, model_name)
 
 fdts = {G.encoder_inputs: test_data,
         G.encoder_inputs_length: test_len,
-        G.decoder_outputs: test_targets
-        }
-ts_loss = sess.run(G.inf_loss, fdts)
+        G.decoder_outputs: test_targets}
+ts_loss, ts_context = sess.run([G.inf_loss, G.context_vector], fdts)
 print('Test MSE: %.3f' % (ts_loss))
+
+fdtr = {G.encoder_inputs: train_data,
+        G.encoder_inputs_length: train_len}
+tr_context = sess.run(G.context_vector, fdtr)
+
+# kNN classification on the codes
+neigh = KNeighborsClassifier(n_neighbors=11)
+neigh.fit(tr_context, train_labels[:,0])
+accuracy = neigh.score(ts_context, test_labels[:,0])
+print('kNN accuarcy: {}'.format(accuracy))
 
 train_writer.close()
 sess.close()
@@ -189,4 +201,4 @@ sess.close()
 with open('results','a') as f:
     f.write('cell: '+args.cell_type+', n_layers: '+str(args.num_layers)+', h_units: '+str(args.hidden_units)+', bidir: '+str(args.bidirect)+', max_grad: '+str(args.max_gradient_norm)+ 
             ', lr: '+str(args.learning_rate)+', decoder_init: '+args.decoder_init+', reverse_inp: '+str(args.reverse_input)+', sched_prob: '+str(args.sched_prob)+ 
-            ', w_align: '+str(args.w_align)+', time: '+str((time_tr_end-time_tr_start)//60)+', MSE: '+str(ts_loss)+'\n')
+            ', w_align: '+str(args.w_align)+', time: '+str((time_tr_end-time_tr_start)//60)+', MSE: '+str(ts_loss)+', ACC: '+str(accuracy)+'\n')

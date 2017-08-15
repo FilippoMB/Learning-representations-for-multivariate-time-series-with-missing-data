@@ -12,11 +12,11 @@ block_flag = True
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
-parser.add_argument("--graph_name", default="20170815-092224", help="name of the file to be loaded", type=str)
+parser.add_argument("--graph_name", default="20170815-101750", help="name of the file to be loaded", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--dim_red", dest='dim_red', action='store_true', help="compute PCA and tSNE")
 parser.add_argument("--plot_on", dest='plot_on', action='store_true', help="make plots")
-parser.set_defaults(reverse_input=False)
+parser.set_defaults(reverse_input=True)
 parser.set_defaults(dim_red=False)
 parser.set_defaults(plot_on=True)
 args = parser.parse_args()
@@ -24,21 +24,21 @@ args = parser.parse_args()
 # ================= LOAD DATA ===================
 
 if args.dataset_id == 'SYNTH':
-    (train_data, train_labels, _, _, _,
+    (train_data, train_labels, train_len, _, _,
         _, _, _, _, _,
-        test_data, test_labels, _, test_targets, K_ts) = getSynthData(name='Lorentz', 
+        test_data, test_labels, test_len, test_targets, K_ts) = getSynthData(name='Lorentz', 
                                                                       tr_data_samples=2000, 
                                                                       vs_data_samples=2000, 
                                                                       ts_data_samples=2000)
 elif args.dataset_id == 'ECG':
-    (train_data, train_labels, _, _, _,
+    (train_data, train_labels, train_len, _, _,
         _, _, _, _, _,
-        test_data, test_labels, _, test_targets, K_ts) = getECGData(tr_ratio = 0)
+        test_data, test_labels, test_len, test_targets, K_ts) = getECGData(tr_ratio = 0)
        
 elif args.dataset_id == 'JAP':        
-    (train_data, train_labels, _, _, _,
+    (train_data, train_labels, train_len, _, _,
         _, _, _, _, _,
-        test_data, test_labels, _, test_targets, K_ts) = getJapData(kernel='TCK',inp=None)
+        test_data, test_labels, test_len, test_targets, K_ts) = getJapData(kernel='TCK',inp=None)
     
 else:
     sys.exit('Invalid dataset_id')
@@ -80,15 +80,15 @@ code_K = tf.get_collection("code_K")[0]
 
 # get context vectors from training data
 fdtr = {encoder_inputs: train_data,
-        encoder_inputs_length: [train_data.shape[0] for _ in range(train_data.shape[1])],
+        encoder_inputs_length: train_len,
         }
-tr_context = sess.run(context_vector, fdtr)
+tr_context2 = sess.run(context_vector, fdtr)
 
 # get context vectors and predictions from test data
 fdts = {encoder_inputs: test_data,
-        encoder_inputs_length: [test_data.shape[0] for _ in range(test_data.shape[1])],
+        encoder_inputs_length: test_len,
         decoder_outputs: test_targets}
-ts_pred, ts_loss, ts_context, ts_code_K = sess.run([inf_outputs, inf_loss, context_vector, code_K], fdts)
+ts_pred, ts_loss, ts_context2, ts_code_K = sess.run([inf_outputs, inf_loss, context_vector, code_K], fdts)
 sess.close()
 
 # =============== DATA ANALYSIS ===============
@@ -135,10 +135,10 @@ if args.plot_on:
 
 # dim reduction plots
 if args.dim_red:
-    dim_reduction_plot(ts_context, test_labels, block_flag)
+    dim_reduction_plot(ts_context2, test_labels, block_flag)
 
 # kNN classification on the codes
 neigh = KNeighborsClassifier(n_neighbors=11)
-neigh.fit(tr_context, train_labels[:,0])
-accuracy = neigh.score(ts_context, test_labels[:,0])
+neigh.fit(tr_context2, train_labels[:,0])
+accuracy = neigh.score(ts_context2, test_labels[:,0])
 print('kNN accuarcy: {}'.format(accuracy))
