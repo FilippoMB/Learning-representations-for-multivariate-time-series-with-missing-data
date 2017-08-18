@@ -81,10 +81,15 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
     elif name == 'LM':
         TS_gen == getLM()
     else:
-        sys.exit('Invalid time series generator name')
-     
+        sys.exit('Invalid time series generator name')   
+        
+    min_max_scaler = preprocessing.MinMaxScaler(feature_range=(-1, 1))
+        
     # training data
     train_data = np.asarray([next(TS_gen) for _ in range(tr_data_samples)])
+#    tr_shape = train_data.shape
+#    train_data = min_max_scaler.fit_transform(train_data.reshape(-1, 1)) # rescale the data
+#    train_data = np.reshape(train_data,tr_shape)
     train_data = preprocessing.scale(train_data,axis=1) # standardize the data
     train_data = np.expand_dims(train_data,-1)
     train_data = np.transpose(train_data,axes=[1,0,2]) # time_major=True
@@ -95,6 +100,9 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
     
     # validation
     valid_data = np.asarray([next(TS_gen) for _ in range(vs_data_samples)])
+#    vs_shape = valid_data.shape
+#    valid_data = min_max_scaler.transform(valid_data.reshape(-1, 1)) # rescale the data
+#    valid_data = np.reshape(valid_data,vs_shape)
     valid_data = preprocessing.scale(valid_data,axis=1) # standardize the data
     valid_data = np.expand_dims(valid_data,-1)
     valid_data = np.transpose(valid_data,axes=[1,0,2]) # time_major=True
@@ -105,6 +113,9 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
     
     # test data
     test_data = np.asarray([next(TS_gen) for _ in range(ts_data_samples)])
+#    ts_shape = test_data.shape
+#    test_data = min_max_scaler.transform(test_data.reshape(-1, 1)) # rescale the data
+#    test_data = np.reshape(test_data, ts_shape)
     test_data = preprocessing.scale(test_data,axis=1) # standardize the data
     test_data = np.expand_dims(test_data,-1)
     test_data = np.transpose(test_data,axes=[1,0,2]) # time_major=True
@@ -112,7 +123,7 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
     test_len = [test_data.shape[0] for _ in range(test_data.shape[1])]
     K_ts = np.ones([ts_data_samples,ts_data_samples]) # just for compatibility
     test_labels = np.ones([ts_data_samples,1]) # just for compatibility
-    
+        
     return (train_data, train_labels, train_len, train_targets, K_tr,
             valid_data, valid_labels, valid_len, valid_targets, K_vs,
             test_data, test_labels, test_len, test_targets, K_ts)
