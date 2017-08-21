@@ -1,6 +1,6 @@
 import tensorflow as tf
 import argparse, sys
-from TS_datasets import getSynthData, getECGData, getJapDataLPS
+from TS_datasets import getSynthData, getECGData, getJapDataFull
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,8 +11,8 @@ plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
-parser.add_argument("--hidden_size", default=30, help="size of the code", type=int)
+parser.add_argument("--dataset_id", default='CHAR', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
+parser.add_argument("--hidden_size", default=6, help="size of the code", type=int)
 parser.add_argument("--code_size", default=30, help="size of the code", type=int)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=50, help="number of samples in each batch", type=int)
@@ -47,7 +47,17 @@ elif args.dataset_id == 'ECG':
 elif args.dataset_id == 'JAP':        
     (train_data, train_labels, train_len, _, _,
         valid_data, _, _, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getJapDataLPS()
+        test_data_orig, test_labels, test_len, _, _) = getJapDataFull()
+
+elif args.dataset_id == 'CHAR':        
+    (train_data, train_labels, train_len, _, _,
+        valid_data, _, _, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getJapDataFull()
+    
+else:
+    sys.exit('Invalid dataset_id')
+    
+if args.dataset_id == 'JAP' or args.dataset_id == 'CHAR':    
     
     # interpolate
     train_data = interp_data(train_data, train_len)
@@ -59,9 +69,6 @@ elif args.dataset_id == 'JAP':
     valid_data = train_data
     test_data = np.transpose(test_data,axes=[1,0,2])
     test_data = np.reshape(test_data, (test_data.shape[0], test_data.shape[1]*test_data.shape[2]))
-    
-else:
-    sys.exit('Invalid dataset_id')
 
 input_length = train_data.shape[1] # same for all inputs
 print('\n**** Processing {}: Tr{}, Vs{}, Ts{} ****\n'.format(args.dataset_id, train_data.shape, valid_data.shape, test_data.shape))
@@ -213,7 +220,7 @@ pred, pred_loss, ts_code = sess.run([dec_out, reconstruct_loss, code], {encoder_
 print('Test loss: {}'.format(pred_loss))
 
 # reverse transformations
-if args.dataset_id == 'JAP': 
+if args.dataset_id == 'JAP' or args.dataset_id == 'CHAR': 
     pred = np.reshape(pred, (test_data_orig.shape[1], test_data_orig.shape[0], test_data_orig.shape[2]))
     pred = np.transpose(pred,axes=[1,0,2])
     pred = interp_data(pred, test_len, restore=True)

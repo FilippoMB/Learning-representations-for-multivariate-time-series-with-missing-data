@@ -1,4 +1,4 @@
-from TS_datasets import getSynthData, getECGData, getJapDataLPS
+from TS_datasets import getSynthData, getECGData, getJapDataFull, getCharDataFull
 import numpy as np
 from sklearn.decomposition import PCA
 import argparse, sys
@@ -8,8 +8,8 @@ from utils import interp_data
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
-parser.add_argument("--num_comp", default=30, help="number of PCA components", type=int)
+parser.add_argument("--dataset_id", default='CHAR', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
+parser.add_argument("--num_comp", default=6, help="number of PCA components", type=int)
 args = parser.parse_args()
 
 # ================== DATASET ===================
@@ -36,7 +36,18 @@ elif args.dataset_id == 'ECG':
 elif args.dataset_id == 'JAP':        
     (train_data, train_labels, train_len, _, _,
         _, _, _, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getJapDataLPS() 
+        test_data_orig, test_labels, test_len, _, _) = getJapDataFull() 
+    
+elif args.dataset_id == 'CHAR':        
+    (train_data, train_labels, train_len, _, _,
+        _, _, _, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getCharDataFull() 
+    
+else:
+   
+    sys.exit('Invalid dataset_id')
+
+if args.dataset_id == 'JAP' or args.dataset_id == 'CHAR':
     
     # interpolate
     train_data = interp_data(train_data, train_len)
@@ -47,9 +58,6 @@ elif args.dataset_id == 'JAP':
     train_data = np.reshape(train_data, (train_data.shape[0], train_data.shape[1]*train_data.shape[2]))
     test_data = np.transpose(test_data,axes=[1,0,2])
     test_data = np.reshape(test_data, (test_data.shape[0], test_data.shape[1]*test_data.shape[2]))
-    
-else:
-    sys.exit('Invalid dataset_id')
 
 print('\n**** Processing {}: Tr{}, Ts{} ****\n'.format(args.dataset_id, train_data.shape, test_data.shape))
 
@@ -62,7 +70,7 @@ ts_proj = pca.transform(test_data)
 pred = pca.inverse_transform(ts_proj)
 
 # reverse transformations
-if args.dataset_id == 'JAP': 
+if args.dataset_id == 'JAP' or args.dataset_id == 'CHAR': 
     pred = np.reshape(pred, (test_data_orig.shape[1], test_data_orig.shape[0], test_data_orig.shape[2]))
     pred = np.transpose(pred,axes=[1,0,2])
     pred = interp_data(pred, test_len, restore=True)

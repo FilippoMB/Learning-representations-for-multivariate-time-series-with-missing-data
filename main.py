@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 np.set_printoptions(precision=2)
 import time
 import tensorflow as tf
-from TS_datasets import getSynthData, getECGData, getJapDataLPS, getLibras
+from TS_datasets import getSynthData, getECGData, getJapDataFull, getLibras, getCharDataFull
 import argparse, sys
 from sklearn.neighbors import KNeighborsClassifier
 
@@ -12,10 +12,10 @@ plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
+parser.add_argument("--dataset_id", default='CHAR', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
 parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
-parser.add_argument("--hidden_units", default=12, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
+parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=50, help="number of samples in each batch", type=int)
 parser.add_argument("--bidirect", dest='bidirect', action='store_true', help="use an encoder which is bidirectional")
@@ -61,12 +61,17 @@ elif args.dataset_id == 'ECG':
 elif args.dataset_id == 'JAP':        
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
-        test_data, test_labels, test_len, test_targets, _) = getJapDataLPS()
+        test_data, test_labels, test_len, test_targets, _) = getJapDataFull()
    
 elif args.dataset_id == 'LIB':        
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, _) = getLibras()
+    
+elif args.dataset_id == 'CHAR':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, _) = getCharDataFull()
     
 else:
     sys.exit('Invalid dataset_id')
