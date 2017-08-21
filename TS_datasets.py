@@ -82,14 +82,9 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
         TS_gen == getLM()
     else:
         sys.exit('Invalid time series generator name')   
-        
-    min_max_scaler = preprocessing.MinMaxScaler(feature_range=(-1, 1))
-        
+                
     # training data
     train_data = np.asarray([next(TS_gen) for _ in range(tr_data_samples)])
-#    tr_shape = train_data.shape
-#    train_data = min_max_scaler.fit_transform(train_data.reshape(-1, 1)) # rescale the data
-#    train_data = np.reshape(train_data,tr_shape)
     train_data = preprocessing.scale(train_data,axis=1) # standardize the data
     train_data = np.expand_dims(train_data,-1)
     train_data = np.transpose(train_data,axes=[1,0,2]) # time_major=True
@@ -100,9 +95,6 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
     
     # validation
     valid_data = np.asarray([next(TS_gen) for _ in range(vs_data_samples)])
-#    vs_shape = valid_data.shape
-#    valid_data = min_max_scaler.transform(valid_data.reshape(-1, 1)) # rescale the data
-#    valid_data = np.reshape(valid_data,vs_shape)
     valid_data = preprocessing.scale(valid_data,axis=1) # standardize the data
     valid_data = np.expand_dims(valid_data,-1)
     valid_data = np.transpose(valid_data,axes=[1,0,2]) # time_major=True
@@ -113,9 +105,6 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
     
     # test data
     test_data = np.asarray([next(TS_gen) for _ in range(ts_data_samples)])
-#    ts_shape = test_data.shape
-#    test_data = min_max_scaler.transform(test_data.reshape(-1, 1)) # rescale the data
-#    test_data = np.reshape(test_data, ts_shape)
     test_data = preprocessing.scale(test_data,axis=1) # standardize the data
     test_data = np.expand_dims(test_data,-1)
     test_data = np.transpose(test_data,axes=[1,0,2]) # time_major=True
@@ -263,33 +252,57 @@ def getJapData(kernel='TCK', inp='zero'):
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, K_ts)
 
-# ========== JAP VOWELS DATA (SLICE MISSINGNESS) ==========
-def getJapDataS(kernel='TCK'):
-    jap_data = scipy.io.loadmat('JapaneseVowels/TCK_data.mat')
-    
-    # train
+# ========== JAP VOWELS LPS ==========
+def getJapDataLPS():
+    jap_data = scipy.io.loadmat('JapaneseVowels/LPS_data.mat')
     train_data = jap_data['X']
-    train_len = np.zeros(train_data.shape[0], dtype=int)
-    for n in range(train_data.shape[0]):
-        train_len[n] = np.count_nonzero(~np.isnan(train_data[n,:,0]))
-        for v in range(train_data.shape[2]):
-            train_data[n,:,v] = sorted(train_data[n,:,v], key=lambda y: np.isnan(y))       
-    train_data = train_data[:,:np.max(train_len),:] # remove time steps which are NaN in ALL data elements
-    train_data = np.transpose(train_data,axes=[1,0,2]) # time_major=True
-    train_data[np.isnan(train_data)] = 0 # substitute nans with 0s
-    train_labels = np.asarray(jap_data['Y'])
-    
-    # test
+    train_labels = jap_data['Y']
+    train_len = jap_data['X_len']
     test_data = jap_data['Xte']
-    test_len = np.zeros(test_data.shape[0], dtype=int)
-    for n in range(test_data.shape[0]):
-        test_len[n] = np.count_nonzero(~np.isnan(test_data[n,:,0]))
-        for v in range(test_data.shape[2]):
-            test_data[n,:,v] = sorted(test_data[n,:,v], key=lambda y: np.isnan(y))
-    test_data = test_data[:,:np.max(test_len),:] # remove time steps which are NaN in ALL data elements       
+    test_labels = jap_data['Yte']
+    test_len = jap_data['Xte_len']
+    
+#    train_data[train_data==0] = np.nan
+#    test_data[test_data==0] = np.nan
+    
+    # time_major=True
+    train_data = np.transpose(train_data,axes=[1,0,2])
+    test_data = np.transpose(test_data,axes=[1,0,2]) 
+    
+    # valid == train   
+    valid_data = train_data
+    valid_labels = train_labels
+    valid_len = train_len  
+    
+    # target outputs
+    train_targets = train_data
+    valid_targets = valid_data
+    test_targets = test_data 
+    
+    # TODO: add LPS kernel
+    K_tr = ideal_kernel(train_labels)
+    K_vs = ideal_kernel(valid_labels)
+    K_ts = ideal_kernel(test_labels)
+    
+    return (train_data, train_labels, train_len[:,0], train_targets, K_tr,
+        valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
+        test_data, test_labels, test_len[:,0], test_targets, K_ts)
+    
+# ========== LIBRAS ==========
+def getLibras():
+    lib_data = scipy.io.loadmat('Libras/Libras_prep.mat')
+    
+    # ------ train -------
+    train_data = lib_data['X']
+    train_data = np.transpose(train_data,axes=[1,0,2]) # time_major=True
+    train_len = [train_data.shape[0] for _ in range(train_data.shape[1])]
+    train_labels = np.asarray(lib_data['Y'])
+    
+    # ----- test -------
+    test_data = lib_data['Xte'] 
     test_data = np.transpose(test_data,axes=[1,0,2]) # time_major=True
-    test_data[np.isnan(test_data)] = 0 # substitute nans with 0s
-    test_labels = np.asarray(jap_data['Yte'])
+    test_len = [test_data.shape[0] for _ in range(test_data.shape[1])]
+    test_labels = np.asarray(lib_data['Yte'])
     
     # valid == train   
     valid_data = train_data
@@ -299,24 +312,16 @@ def getJapDataS(kernel='TCK'):
     # target outputs
     train_targets = train_data
     valid_targets = valid_data
-    test_targets = test_data    
+    test_targets = test_data 
     
-    if kernel=='TCK':
-        K_tr = jap_data['Ktrtr']
-        K_vs = K_tr
-        K_ts = jap_data['Ktete']
-    elif kernel=='ideal':
-        K_tr = ideal_kernel(train_labels)
-        K_vs = ideal_kernel(valid_labels)
-        K_ts = ideal_kernel(test_labels)
-    else:
-        K_tr, K_vs = np.zeros_like(jap_data['Ktrtr'])
-        K_ts = np.zeros_like(jap_data['Ktete'])
-    
+    K_tr = ideal_kernel(train_labels)
+    K_vs = ideal_kernel(valid_labels)
+    K_ts = ideal_kernel(test_labels)
+ 
     return (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
-        test_data, test_labels, test_len, test_targets, K_ts)
-
+        test_data, test_labels, test_len, test_targets, K_ts)    
+    
 # ========== SYNTH VAR DATA ==========    
 def getVarData():
     X = scipy.io.loadmat(file_name='../../data/VAR_data.mat')['x']

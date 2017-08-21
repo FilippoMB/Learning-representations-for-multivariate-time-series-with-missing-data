@@ -4,28 +4,29 @@ import matplotlib.pyplot as plt
 np.set_printoptions(precision=2)
 import time
 import tensorflow as tf
-from TS_datasets import getSynthData, getECGData, getJapData
+from TS_datasets import getSynthData, getECGData, getJapDataLPS, getLibras
 import argparse, sys
 from sklearn.neighbors import KNeighborsClassifier
 
-plot_on = 1
+plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='ECG', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
+parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
 parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
-parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
+parser.add_argument("--hidden_units", default=12, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
-parser.add_argument("--batch_size", default=250, help="number of samples in each batch", type=int)
+parser.add_argument("--batch_size", default=50, help="number of samples in each batch", type=int)
 parser.add_argument("--bidirect", dest='bidirect', action='store_true', help="use an encoder which is bidirectional")
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
-parser.add_argument("--decoder_init", default='all', help="init decoder with last state of only last layer (last, zero, all)", type=str)
+parser.add_argument("--decoder_init", default='last', help="init decoder with last state of only last layer (last, zero, all)", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--sched_prob", default=0.9, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--w_align", default=0.0, help="kernel alignment weight", type=float)
-parser.set_defaults(bidirect=False)
+parser.add_argument("--w_l2", default=0.001, help="l2 norm regularization weight", type=float)
+parser.set_defaults(bidirect=True)
 parser.set_defaults(reverse_input=False)
 args = parser.parse_args()
 
@@ -40,7 +41,8 @@ config = dict(cell_type = args.cell_type,
               num_epochs = args.num_epochs,
               batch_size = args.batch_size,
               sched_prob = args.sched_prob,
-              w_align = args.w_align)
+              w_align = args.w_align,
+              w_l2 = args.w_l2)
 print(config)
 
 # ================= DATASET =================
@@ -59,7 +61,12 @@ elif args.dataset_id == 'ECG':
 elif args.dataset_id == 'JAP':        
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
-        test_data, test_labels, test_len, test_targets, _) = getJapData(kernel='ideal',inp='last')
+        test_data, test_labels, test_len, test_targets, _) = getJapDataLPS()
+   
+elif args.dataset_id == 'LIB':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, _) = getLibras()
     
 else:
     sys.exit('Invalid dataset_id')
@@ -96,7 +103,7 @@ for variable in tf.trainable_variables():
 print('Total parameters: {}'.format(total_parameters))
 
 # ================= DEBUG =================
-#fd = {G.encoder_inputs: train_data, G.encoder_inputs_length: train_len, G.decoder_outputs: train_targets, G.prior_K: K_tr}
+#fd = {G.encoder_inputs: train_data[:,11:20,:], G.encoder_inputs_length: train_len[11:20], G.decoder_outputs: train_targets[:,11:20,:], G.prior_K: K_tr[:,11:20][11:20,:]}
 #teach_out, inf_out, sched_out,e_states = sess.run([G.teach_outputs, G.inf_outputs, G.sched_outputs,G.encoder_states], fd )  
 #
 #raise
@@ -144,9 +151,22 @@ try:
                     G.decoder_outputs: valid_targets,
                     G.prior_K: K_vs
                     }
-            inf_outvs, inf_lossvs, teach_outvs, teach_lossvs, vs_code_K, summary = sess.run([G.inf_outputs, G.inf_loss, G.teach_outputs, G.teach_loss, G.code_K, G.merged_summary], fdvs)
+            (inf_outvs, 
+             inf_lossvs, 
+             teach_outvs, 
+             teach_lossvs, 
+             reg_loss, 
+             vs_code_K, 
+             summary) = (sess.run([G.inf_outputs, 
+                                   G.inf_loss, 
+                                   G.teach_outputs, 
+                                   G.teach_loss, 
+                                   G.reg_loss, 
+                                   G.code_K, 
+                                   G.merged_summary], fdvs))
             train_writer.add_summary(summary, ep)
-            print('VS: inf_loss=%.3f, teach_loss=%.3f -- TR: min_loss=.%3f'%(inf_lossvs, teach_lossvs, np.min(inf_loss_track)))     
+            print('VS: inf_loss=%.3f, teach_loss=%.3f, reg_loss=%.3f -- TR: min_loss=.%3f'
+                  %(inf_lossvs, teach_lossvs, reg_loss*args.w_l2, np.min(inf_loss_track)))     
             
             # Save model yielding best results on validation
             if inf_lossvs < min_vs_loss:

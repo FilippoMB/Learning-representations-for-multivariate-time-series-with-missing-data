@@ -17,6 +17,7 @@ class s2s_ts_Model():
         self.decoder_init = config['decoder_init']
         self.sched_prob = config['sched_prob']
         self.w_align = config['w_align']
+        self.w_l2 = config['w_l2']
         
         self.EOS = 0
         
@@ -134,6 +135,7 @@ class s2s_ts_Model():
     
     
     def _get_context(self):
+        
         to_be_concat = []
         for state in self.decoder_init_state:
             if isinstance(state, LSTMStateTuple):
@@ -141,9 +143,9 @@ class s2s_ts_Model():
             else:
                 to_be_concat.append(state)
 
-        if self.decoder_init == 'all':
+        if self.decoder_init == 'all': # context vector is the last state of all encoder layers
             self.context_vector = tf.concat(to_be_concat,1)
-        else:
+        else: # context vector is the last state of the last encoder layer only
             self.context_vector = to_be_concat[0]
     
         # inner products of the context vectors
@@ -194,7 +196,7 @@ class s2s_ts_Model():
             
             # callable that takes (time, outputs, state) and emits tensor sample_ids.
             def sample_fn(time, outputs, state): 
-                del time, outputs, state # not using them: we always return the same output
+                del time, outputs, state # not using them: we always return the same ids
                 return tf.zeros([d_batch_size], dtype=tf.int32)
             
             # callable that takes (time, outputs, state, sample_ids) and emits (finished, next_inputs, next_state)
@@ -258,7 +260,17 @@ class s2s_ts_Model():
     def _init_loss(self):
         with tf.variable_scope("Loss"): 
             
-            decoder_train_outputs = tf.concat([self.decoder_outputs, self.EOS_slice], axis=0)
+            # reshape target outputs to match the size of the predicted outputs
+            max_time_step = tf.reduce_max(self.encoder_inputs_length)
+            decoder_train_outputs = tf.concat([tf.slice(self.decoder_outputs, [0,0,0], [max_time_step, -1, -1]), 
+                                              self.EOS_slice], axis=0)
+            
+            # mask padding positions outside the target sequence length with values 0 
+            decoder_mask = tf.transpose(tf.sequence_mask(self.encoder_inputs_length+1, max_time_step+1, dtype=tf.float32))
+            self.teach_outputs = tf.expand_dims(decoder_mask,-1)*self.teach_outputs
+            self.inf_outputs = tf.expand_dims(decoder_mask,-1)*self.inf_outputs
+            self.sched_outputs = tf.expand_dims(decoder_mask,-1)*self.sched_outputs
+            
             parameters = tf.trainable_variables()
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
             
@@ -267,10 +279,10 @@ class s2s_ts_Model():
             prior_K_norm = self.prior_K/tf.norm(self.prior_K, ord='fro', axis=[-2,-1])
             self.k_loss = tf.norm(code_K_norm - prior_K_norm, ord='fro', axis=[-2,-1])
             
-            # TODO: think about dropout, L2 norm and lr decay
-#            reg_loss = 0
-#            for tf_var in tf.trainable_variables():
-#                reg_loss += tf.reduce_mean(tf.nn.l2_loss(tf_var))
+            # L2 norm loss
+            self.reg_loss = 0
+            for tf_var in tf.trainable_variables():
+                self.reg_loss += tf.reduce_mean(tf.nn.l2_loss(tf_var))
 #                if not ("Bias" in tf_var.name or "Output_" in tf_var.name):
 #                    reg_loss += tf.reduce_mean(tf.nn.l2_loss(tf_var))
                      
@@ -289,25 +301,18 @@ class s2s_ts_Model():
 #            cden = 1 - tf.exp(-1/(2*sig**2))
 #            self.corr_sched_loss = cnum/cden
             
+            # teacher + inf_loss
+#            self.teach_inf_loss = 0.1*self.teach_loss + self.inf_loss
+            
             # ============= TOT LOSS =============
-            self.tot_loss = self.sched_loss + self.w_align*self.k_loss
+            self.tot_loss = self.sched_loss + self.w_align*self.k_loss + self.w_l2*self.reg_loss
                         
             # Calculate and clip gradients
             gradients = tf.gradients(self.tot_loss, parameters)
             clipped_gradients, _ = tf.clip_by_global_norm(gradients, self.max_gradient_norm)
             
             self.update_step = optimizer.apply_gradients(zip(clipped_gradients, parameters))
-            
-#            # --------- TEACHER + INFERENCE LOSS --------- 
-#            TODO: see if this stuff can work
-#            self.teach_inf_loss = 0.1*self.teach_loss + self.inf_loss + self.w_align*self.k_loss
-#            
-#            # Calculate and clip gradients
-#            teach_inf_gradients = tf.gradients(self.teach_inf_loss, parameters)
-#            teach_inf_clipped_gradients, _ = tf.clip_by_global_norm(teach_inf_gradients, self.max_gradient_norm)
-#                       
-#            self.teach_inf_update_step = optimizer.apply_gradients(zip(teach_inf_clipped_gradients, parameters))
-            
+                        
             # ============= TENSORBOARD =============             
             mean_grads = tf.reduce_mean([tf.reduce_mean(grad) for grad in gradients])
             tf.summary.scalar('mean_grads', mean_grads)

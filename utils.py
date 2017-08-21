@@ -2,10 +2,11 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import TruncatedSVD
 from sklearn.manifold import TSNE
 import numpy as np
+from scipy import interpolate
+
 
 def dim_reduction_plot(data, label, block_flag):
   
- 
   # PCA
   PCA_model = TruncatedSVD(n_components=3).fit(data)
   data_PCA = PCA_model.transform(data)
@@ -25,6 +26,7 @@ def dim_reduction_plot(data, label, block_flag):
   plt.show(block=block_flag)
   return
 
+
 def ideal_kernel(labels):
     K = np.zeros([labels.shape[0], labels.shape[0]])
     
@@ -34,3 +36,31 @@ def ideal_kernel(labels):
         K[:,i] = k[:,0]
     return K        
     
+
+def interp_data(X, X_len, restore=False):
+    """data are assumed to be time-major """
+    
+    [T, N, V] = X.shape
+    X_new = np.zeros_like(X)
+    
+    # restore original lengths
+    if restore:
+        for n in range(N):
+            t = np.linspace(start=0, stop=X_len[n], num=T)
+            t_new = np.linspace(start=0, stop=X_len[n], num=X_len[n])
+            for v in range(V):
+                x_n_v = X[:,n,v]
+                f = interpolate.interp1d(t, x_n_v)
+                X_new[:X_len[n],n,v] = f(t_new)
+            
+    # interpolate all data to length T    
+    else:
+        for n in range(N):
+            t = np.linspace(start=0, stop=X_len[n], num=X_len[n])
+            t_new = np.linspace(start=0, stop=X_len[n], num=T)
+            for v in range(V):
+                x_n_v = X[:X_len[n],n,v]
+                f = interpolate.interp1d(t, x_n_v)
+                X_new[:,n,v] = f(t_new)
+                
+    return X_new
