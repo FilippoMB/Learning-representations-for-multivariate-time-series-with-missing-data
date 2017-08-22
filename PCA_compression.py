@@ -8,7 +8,7 @@ from utils import classify_with_knn
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='CHAR', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
-parser.add_argument("--num_comp", default=6, help="number of PCA components", type=int)
+parser.add_argument("--num_comp", default=14, help="number of PCA components", type=int)
 args = parser.parse_args()
 
 # ================== DATASET ===================

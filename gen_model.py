@@ -178,7 +178,7 @@ class s2s_ts_Model():
                     output_layer=None)
             
             # Dynamic decoding
-            teach_outputs, final_context_state, _ = seq2seq.dynamic_decode(
+            teach_outputs, _, _ = seq2seq.dynamic_decode(
                     teach_decoder,
                     output_time_major=True,
                     swap_memory=True,

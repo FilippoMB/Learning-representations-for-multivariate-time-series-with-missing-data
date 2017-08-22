@@ -1,6 +1,6 @@
 import tensorflow as tf
 import argparse, sys
-from TS_datasets import getSynthData, getECGData, getJapDataFull
+from TS_datasets import getSynthData, getECGData, getJapDataFull, getCharDataFull
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,12 +12,12 @@ plot_on = 0
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='CHAR', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
-parser.add_argument("--hidden_size", default=6, help="size of the code", type=int)
+parser.add_argument("--hidden_size", default=14, help="size of the code", type=int)
 parser.add_argument("--code_size", default=30, help="size of the code", type=int)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=50, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
-parser.add_argument("--w_reg", default=0.001, help="weight of the regularization in the loss function", type=float)
+parser.add_argument("--w_reg", default=0.0001, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 args = parser.parse_args()
 
@@ -52,7 +52,7 @@ elif args.dataset_id == 'JAP':
 elif args.dataset_id == 'CHAR':        
     (train_data, train_labels, train_len, _, _,
         valid_data, _, _, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getJapDataFull()
+        test_data_orig, test_labels, test_len, _, _) = getCharDataFull()
     
 else:
     sys.exit('Invalid dataset_id')
