@@ -64,3 +64,45 @@ def interp_data(X, X_len, restore=False):
                 X_new[:,n,v] = f(t_new)
                 
     return X_new
+
+
+def classify_with_knn(train_data, train_labels, val_data, val_labels, min_k=1, max_k=21, step_k=1, plot_results=True, return_results=False):
+    """
+    Perform classification with knn by trying multiple k values.
+    This function plots
+    :param train_data:
+    :param train_labels:
+    :param val_data:
+    :param val_labels:
+    :param min_k:
+    :param max_k:
+    :param step_k:
+    :param plot_results: Boolean indicating whether the function should plot the results
+    :param return_results: If True, return a pair of k values and related classification accuracy,
+        otherwise, the function returns None
+    :return:
+    """
+
+    from sklearn.neighbors import KNeighborsClassifier
+
+    k_values = []
+    knn_acc = []
+    for k in range(min_k, max_k, step_k):
+        k_values.append(k)
+        neigh = KNeighborsClassifier(n_neighbors=k)
+        neigh.fit(train_data, train_labels)
+        accuracy = neigh.score(val_data, val_labels)
+        knn_acc.append(accuracy)
+
+    if plot_results:
+        import matplotlib.pyplot as plt
+
+        plt.plot(k_values, knn_acc)
+        plt.xlabel("K")
+        plt.ylabel("Accuracy")
+        plt.show()
+
+    if return_results:
+        return k_values, knn_acc
+    else:
+        return None

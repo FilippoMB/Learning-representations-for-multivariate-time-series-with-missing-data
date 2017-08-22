@@ -2,9 +2,8 @@ from TS_datasets import getSynthData, getECGData, getJapDataFull, getCharDataFul
 import numpy as np
 from sklearn.decomposition import PCA
 import argparse, sys
-import matplotlib.pyplot as plt
-from sklearn.neighbors import KNeighborsClassifier
 from utils import interp_data
+from utils import classify_with_knn
 
 # parse input data
 parser = argparse.ArgumentParser()
@@ -81,10 +80,8 @@ ts_loss = np.mean((test_data[np.nonzero(test_data)]-pred[np.nonzero(test_data)])
 print('Test MSE: {}'.format(ts_loss))
 
 # kNN classification on the codes
-neigh = KNeighborsClassifier(n_neighbors=11)
-neigh.fit(tr_proj, train_labels[:,0])
-accuracy = neigh.score(ts_proj, test_labels[:,0])
-print('kNN accuarcy: {}'.format(accuracy))
+classify_with_knn(tr_proj, train_labels[:, 0], ts_proj, test_labels[:, 0])
+
 
 ## plot reconstruction
 #plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])

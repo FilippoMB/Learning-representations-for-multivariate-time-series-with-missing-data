@@ -4,7 +4,7 @@ from TS_datasets import getSynthData, getECGData, getJapDataFull
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.neighbors import KNeighborsClassifier
+from utils import classify_with_knn
 from utils import interp_data
 
 plot_on = 0
@@ -231,11 +231,9 @@ ts_loss = np.mean((test_data[np.nonzero(test_data)]-pred[np.nonzero(test_data)])
 print('Test MSE: {}'.format(ts_loss))
 
 # kNN classification on the codes
-neigh = KNeighborsClassifier(n_neighbors=11)
-neigh.fit(tr_code, train_labels[:,0])
-accuracy = neigh.score(ts_code, test_labels[:,0])
-print('kNN accuarcy: {}'.format(accuracy))
+classify_with_knn(tr_code, train_labels[:, 0], ts_code, test_labels[:, 0], max_k=35)
 
+# save MSE results on file
 with open('AE_results','a') as f:
     f.write('code_size: '+str(args.code_size)+', MSE: '+str(ts_loss)+'\n')
 

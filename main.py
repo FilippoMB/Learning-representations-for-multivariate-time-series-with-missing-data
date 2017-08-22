@@ -6,7 +6,7 @@ import time
 import tensorflow as tf
 from TS_datasets import getSynthData, getECGData, getJapDataFull, getLibras, getCharDataFull
 import argparse, sys
-from sklearn.neighbors import KNeighborsClassifier
+from utils import classify_with_knn
 
 plot_on = 0
 
@@ -223,22 +223,20 @@ fdts = {G.encoder_inputs: test_data,
         G.encoder_inputs_length: test_len,
         G.decoder_outputs: test_targets}
 ts_loss, ts_context = sess.run([G.inf_loss, G.context_vector], fdts)
-print('Test MSE: %.3f' % (ts_loss))
+print('Test MSE: %.3f' % ts_loss)
 
 fdtr = {G.encoder_inputs: train_data,
         G.encoder_inputs_length: train_len}
 tr_context = sess.run(G.context_vector, fdtr)
 
 # kNN classification on the codes
-neigh = KNeighborsClassifier(n_neighbors=11)
-neigh.fit(tr_context, train_labels[:,0])
-accuracy = neigh.score(ts_context, test_labels[:,0])
-print('kNN accuarcy: {}'.format(accuracy))
+classify_with_knn(tr_context, train_labels[:, 0], ts_context, test_labels[:, 0])
+
 
 train_writer.close()
 sess.close()
 
-with open('results','a') as f:
+with open('results', 'a') as f:
     f.write('cell: '+args.cell_type+', n_layers: '+str(args.num_layers)+', h_units: '+str(args.hidden_units)+', bidir: '+str(args.bidirect)+', max_grad: '+str(args.max_gradient_norm)+ 
             ', lr: '+str(args.learning_rate)+', decoder_init: '+args.decoder_init+', reverse_inp: '+str(args.reverse_input)+', sched_prob: '+str(args.sched_prob)+ 
             ', w_align: '+str(args.w_align)+', time: '+str((time_tr_end-time_tr_start)//60)+', MSE: '+str(ts_loss)+', ACC: '+str(accuracy)+'\n')
