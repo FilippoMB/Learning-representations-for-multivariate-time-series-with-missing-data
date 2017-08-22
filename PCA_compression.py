@@ -9,8 +9,8 @@ from numpy import corrcoef
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='CHAR', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
-parser.add_argument("--num_comp", default=4, help="number of PCA components", type=int)
+parser.add_argument("--dataset_id", default='CHAR', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--num_comp", default=14, help="number of PCA components", type=int)
 args = parser.parse_args()
 print(args)
 
@@ -86,7 +86,8 @@ print('Test Pearson correlation: {}'.format(corrcoef(
     pred[np.nonzero(test_data)])[0, 1]))
 
 # kNN classification on the codes
-classify_with_knn(tr_proj, train_labels[:, 0], ts_proj, test_labels[:, 0])
+acc = classify_with_knn(tr_proj, train_labels[:, 0], ts_proj, test_labels[:, 0])
+print('kNN acc: {}'.format(acc))
 
 
 ## plot reconstruction

@@ -7,8 +7,6 @@ import tensorflow as tf
 from TS_datasets import getSynthData, getECGData, getJapDataFull, getLibras, getCharDataFull
 import argparse, sys
 from utils import classify_with_knn
-from numpy import corrcoef
-
 
 plot_on = 0
 
@@ -16,7 +14,7 @@ plot_on = 0
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='CHAR', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
-parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
+parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=50, help="number of samples in each batch", type=int)
@@ -25,9 +23,9 @@ parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm 
 parser.add_argument("--learning_rate", default=0.005, help="Adam initial learning rate", type=float)
 parser.add_argument("--decoder_init", default='last', help="init decoder with last state of only last layer (last, zero, all)", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
-parser.add_argument("--sched_prob", default=0.9, help="probability of sampling from teacher signal in scheduled sampling", type=float)
+parser.add_argument("--sched_prob", default=0.95, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--w_align", default=0.0, help="kernel alignment weight", type=float)
-parser.add_argument("--w_l2", default=0.001, help="l2 norm regularization weight", type=float)
+parser.add_argument("--w_l2", default=0.0, help="l2 norm regularization weight", type=float)
 parser.set_defaults(bidirect=True)
 parser.set_defaults(reverse_input=False)
 args = parser.parse_args()
@@ -238,7 +236,7 @@ classify_with_knn(tr_context, train_labels[:, 0], ts_context, test_labels[:, 0])
 train_writer.close()
 sess.close()
 
-with open('results', 'a') as f:
-    f.write('cell: '+args.cell_type+', n_layers: '+str(args.num_layers)+', h_units: '+str(args.hidden_units)+', bidir: '+str(args.bidirect)+', max_grad: '+str(args.max_gradient_norm)+ 
-            ', lr: '+str(args.learning_rate)+', decoder_init: '+args.decoder_init+', reverse_inp: '+str(args.reverse_input)+', sched_prob: '+str(args.sched_prob)+ 
-            ', w_align: '+str(args.w_align)+', time: '+str((time_tr_end-time_tr_start)//60)+', MSE: '+str(ts_loss)+', ACC: '+str(accuracy)+'\n')
+#with open('results', 'a') as f:
+#    f.write('cell: '+args.cell_type+', n_layers: '+str(args.num_layers)+', h_units: '+str(args.hidden_units)+', bidir: '+str(args.bidirect)+', max_grad: '+str(args.max_gradient_norm)+ 
+#            ', lr: '+str(args.learning_rate)+', decoder_init: '+args.decoder_init+', reverse_inp: '+str(args.reverse_input)+', sched_prob: '+str(args.sched_prob)+ 
+#            ', w_align: '+str(args.w_align)+', time: '+str((time_tr_end-time_tr_start)//60)+', MSE: '+str(ts_loss)+', ACC: '+str(accuracy)+'\n')
