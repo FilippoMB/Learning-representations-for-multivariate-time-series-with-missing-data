@@ -226,9 +226,6 @@ fdts = {G.encoder_inputs: test_data,
         G.decoder_outputs: test_targets}
 ts_loss, ts_context = sess.run([G.inf_loss, G.context_vector], fdts)
 print('Test MSE: %.3f' % ts_loss)
-print('Test Pearson correlation: {}'.format(corrcoef(
-    test_data[np.nonzero(test_data)],
-    pred[np.nonzero(test_data)])[0, 1]))
 
 fdtr = {G.encoder_inputs: train_data,
         G.encoder_inputs_length: train_len}
