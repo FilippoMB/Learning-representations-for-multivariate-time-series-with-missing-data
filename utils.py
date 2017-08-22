@@ -66,7 +66,7 @@ def interp_data(X, X_len, restore=False):
     return X_new
 
 
-def classify_with_knn(train_data, train_labels, val_data, val_labels, min_k=1, max_k=21, step_k=1, plot_results=True, return_results=False):
+def classify_with_knn(train_data, train_labels, val_data, val_labels, min_k=3, max_k=3, step_k=1, plot_results=False, return_results=True):
     """
     Perform classification with knn by trying multiple k values.
     This function plots

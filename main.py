@@ -20,7 +20,7 @@ parser.add_argument("--num_epochs", default=5000, help="number of epochs in trai
 parser.add_argument("--batch_size", default=50, help="number of samples in each batch", type=int)
 parser.add_argument("--bidirect", dest='bidirect', action='store_true', help="use an encoder which is bidirectional")
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
-parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
+parser.add_argument("--learning_rate", default=0.005, help="Adam initial learning rate", type=float)
 parser.add_argument("--decoder_init", default='last', help="init decoder with last state of only last layer (last, zero, all)", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--sched_prob", default=0.9, help="probability of sampling from teacher signal in scheduled sampling", type=float)
