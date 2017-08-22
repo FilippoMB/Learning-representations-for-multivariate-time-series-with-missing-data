@@ -4,6 +4,8 @@ from sklearn.decomposition import PCA
 import argparse, sys
 from utils import interp_data
 from utils import classify_with_knn
+from numpy import corrcoef
+
 
 # parse input data
 parser = argparse.ArgumentParser()
@@ -76,9 +78,12 @@ if args.dataset_id == 'JAP' or args.dataset_id == 'CHAR':
     pred = interp_data(pred, test_len, restore=True)
     test_data = test_data_orig
 
-# loss
+# loss and Pearson correlation
 ts_loss = np.mean((test_data[np.nonzero(test_data)]-pred[np.nonzero(test_data)])**2)
 print('Test MSE: {}'.format(ts_loss))
+print('Test Pearson correlation: {}'.format(corrcoef(
+    test_data[np.nonzero(test_data)],
+    pred[np.nonzero(test_data)])[0, 1]))
 
 # kNN classification on the codes
 classify_with_knn(tr_proj, train_labels[:, 0], ts_proj, test_labels[:, 0])

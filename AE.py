@@ -6,6 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from utils import classify_with_knn
 from utils import interp_data
+from numpy import corrcoef
+
 
 plot_on = 0
 
@@ -229,6 +231,9 @@ if args.dataset_id == 'JAP' or args.dataset_id == 'CHAR':
 # loss
 ts_loss = np.mean((test_data[np.nonzero(test_data)]-pred[np.nonzero(test_data)])**2)
 print('Test MSE: {}'.format(ts_loss))
+print('Test Pearson correlation: {}'.format(corrcoef(
+    test_data[np.nonzero(test_data)],
+    pred[np.nonzero(test_data)])[0, 1]))
 
 # kNN classification on the codes
 classify_with_knn(tr_code, train_labels[:, 0], ts_code, test_labels[:, 0], max_k=35)
