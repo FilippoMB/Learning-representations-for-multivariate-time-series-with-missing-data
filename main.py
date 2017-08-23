@@ -13,11 +13,11 @@ plot_on = 0
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='LIB', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
-parser.add_argument("--cell_type", default='GRU', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
-parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
+parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
+parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
-parser.add_argument("--batch_size", default=60, help="number of samples in each batch", type=int)
+parser.add_argument("--batch_size", default=30, help="number of samples in each batch", type=int)
 parser.add_argument("--bidirect", dest='bidirect', action='store_true', help="use an encoder which is bidirectional")
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
@@ -27,7 +27,7 @@ parser.add_argument("--sched_prob", default=0.9, help="probability of sampling f
 parser.add_argument("--w_align", default=0.0, help="kernel alignment weight", type=float)
 parser.add_argument("--w_l2", default=0.0, help="l2 norm regularization weight", type=float)
 parser.set_defaults(bidirect=False)
-parser.set_defaults(reverse_input=True)
+parser.set_defaults(reverse_input=False)
 args = parser.parse_args()
 
 config = dict(cell_type = args.cell_type,
@@ -226,12 +226,11 @@ tf.reset_default_graph() # be sure that correct weights are loaded
 saver.restore(sess, model_name)
 
 fdts = {G.encoder_inputs: test_data,
-        G.encoder_inputs_length: test_len,
-        G.decoder_outputs: test_targets}
-sched_outs, ts_loss, ts_context = sess.run([G.sched_outputs, G.inf_loss, G.context_vector], fdts)
+        G.encoder_inputs_length: test_len}
+inf_outs, ts_context = sess.run([G.inf_outputs, G.context_vector], fdts)
 
 # MSE and corr
-tot_mse, tot_corr = mse_and_corr(test_targets, sched_outs, test_len)
+tot_mse, tot_corr = mse_and_corr(test_targets, inf_outs, test_len)
 print('Test MSE: {}\nTest Pearson correlation: {}'.format(tot_mse, tot_corr))
 
 # kNN classification on the codes
