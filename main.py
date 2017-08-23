@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 np.set_printoptions(precision=2)
 import time
 import tensorflow as tf
-from TS_datasets import getSynthData, getECGData, getJapDataFull, getLibras, getCharDataFull
+from TS_datasets import getSynthData, getECGData, getJapDataFull, getLibras, getCharDataFull, getWafer
 import argparse, sys
 from utils import classify_with_knn, mse_and_corr
 
@@ -13,8 +13,8 @@ plot_on = 0
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='LIB', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
-parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
-parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
+parser.add_argument("--cell_type", default='GRU', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
+parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=60, help="number of samples in each batch", type=int)
@@ -23,7 +23,7 @@ parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm 
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 parser.add_argument("--decoder_init", default='last', help="init decoder with last state of only last layer (last, zero, all)", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
-parser.add_argument("--sched_prob", default=0.95, help="probability of sampling from teacher signal in scheduled sampling", type=float)
+parser.add_argument("--sched_prob", default=0.9, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--w_align", default=0.0, help="kernel alignment weight", type=float)
 parser.add_argument("--w_l2", default=0.0, help="l2 norm regularization weight", type=float)
 parser.set_defaults(bidirect=False)
@@ -72,6 +72,11 @@ elif args.dataset_id == 'CHAR':
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, _) = getCharDataFull()
+
+elif args.dataset_id == 'WAF':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, _) = getWafer()
     
 else:
     sys.exit('Invalid dataset_id')
