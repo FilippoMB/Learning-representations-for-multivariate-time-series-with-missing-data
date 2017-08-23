@@ -6,28 +6,28 @@ import time
 import tensorflow as tf
 from TS_datasets import getSynthData, getECGData, getJapDataFull, getLibras, getCharDataFull
 import argparse, sys
-from utils import classify_with_knn
+from utils import classify_with_knn, mse_and_corr
 
 plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='CHAR', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
+parser.add_argument("--dataset_id", default='LIB', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
-parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
+parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
-parser.add_argument("--batch_size", default=50, help="number of samples in each batch", type=int)
+parser.add_argument("--batch_size", default=60, help="number of samples in each batch", type=int)
 parser.add_argument("--bidirect", dest='bidirect', action='store_true', help="use an encoder which is bidirectional")
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
-parser.add_argument("--learning_rate", default=0.005, help="Adam initial learning rate", type=float)
+parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 parser.add_argument("--decoder_init", default='last', help="init decoder with last state of only last layer (last, zero, all)", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--sched_prob", default=0.95, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--w_align", default=0.0, help="kernel alignment weight", type=float)
 parser.add_argument("--w_l2", default=0.0, help="l2 norm regularization weight", type=float)
-parser.set_defaults(bidirect=True)
-parser.set_defaults(reverse_input=False)
+parser.set_defaults(bidirect=False)
+parser.set_defaults(reverse_input=True)
 args = parser.parse_args()
 
 config = dict(cell_type = args.cell_type,
@@ -56,7 +56,7 @@ if args.dataset_id == 'SYNTH':
 elif args.dataset_id == 'ECG':
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
-        test_data, test_labels, test_len, test_targets, _) = getECGData(tr_ratio = 0)
+        test_data, test_labels, test_len, test_targets, _) = getECGData()
        
 elif args.dataset_id == 'JAP':        
     (train_data, train_labels, train_len, train_targets, K_tr,
@@ -109,6 +109,7 @@ print('Total parameters: {}'.format(total_parameters))
 
 # ================= DEBUG =================
 #fd = {G.encoder_inputs: train_data[:,11:20,:], G.encoder_inputs_length: train_len[11:20], G.decoder_outputs: train_targets[:,11:20,:], G.prior_K: K_tr[:,11:20][11:20,:]}
+#fd = {G.encoder_inputs: train_data, G.encoder_inputs_length: train_len, G.decoder_outputs: train_targets, G.prior_K: K_tr}
 #teach_out, inf_out, sched_out,e_states = sess.run([G.teach_outputs, G.inf_outputs, G.sched_outputs,G.encoder_states], fd )  
 #
 #raise
@@ -222,16 +223,17 @@ saver.restore(sess, model_name)
 fdts = {G.encoder_inputs: test_data,
         G.encoder_inputs_length: test_len,
         G.decoder_outputs: test_targets}
-ts_loss, ts_context = sess.run([G.inf_loss, G.context_vector], fdts)
-print('Test MSE: %.3f' % ts_loss)
+sched_outs, ts_loss, ts_context = sess.run([G.sched_outputs, G.inf_loss, G.context_vector], fdts)
 
+# MSE and corr
+tot_mse, tot_corr = mse_and_corr(test_targets, sched_outs, test_len)
+print('Test MSE: {}\nTest Pearson correlation: {}'.format(tot_mse, tot_corr))
+
+# kNN classification on the codes
 fdtr = {G.encoder_inputs: train_data,
         G.encoder_inputs_length: train_len}
 tr_context = sess.run(G.context_vector, fdtr)
-
-# kNN classification on the codes
 classify_with_knn(tr_context, train_labels[:, 0], ts_context, test_labels[:, 0])
-
 
 train_writer.close()
 sess.close()

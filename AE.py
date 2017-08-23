@@ -1,20 +1,18 @@
 import tensorflow as tf
 import argparse, sys
-from TS_datasets import getSynthData, getECGData, getJapDataFull, getCharDataFull
+from TS_datasets import getSynthData, getECGData, getJapDataFull, getCharDataFull, getLibras, getWafer
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import classify_with_knn
-from utils import interp_data
-from numpy import corrcoef
+from utils import classify_with_knn, interp_data, mse_and_corr
 
 
 plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='CHAR', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
-parser.add_argument("--code_size", default=14, help="size of the code", type=int)
+parser.add_argument("--dataset_id", default='LIB', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--code_size", default=5, help="size of the code", type=int)
 parser.add_argument("--w_reg", default=0.0001, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=50, help="number of samples in each batch", type=int)
@@ -26,55 +24,59 @@ print(args)
 
 # ================= DATASET =================
 if args.dataset_id == 'SYNTH':
-    (train_data, train_labels, _, _, _,
-        valid_data, _, _, _, _,
-        test_data, test_labels, _, _, _) = getSynthData(name='Lorentz', tr_data_samples=2000, 
-                                                 vs_data_samples=2000, 
-                                                 ts_data_samples=2000)
-    # transpose --> [N, T, V]
-    train_data = train_data[:,:,0].T
-    valid_data = valid_data[:,:,0].T
-    test_data = test_data[:,:,0].T
+    (train_data, train_labels, train_len, _, _,
+        valid_data, _, valid_len, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getSynthData(name='Lorentz', tr_data_samples=2000, 
+                                                                     vs_data_samples=2000, 
+                                                                     ts_data_samples=2000)
     
 elif args.dataset_id == 'ECG':
-    (train_data, train_labels, _, _, _,
-        valid_data, _, _, _, _,
-        test_data, test_labels, _, _, _) = getECGData(tr_ratio = 0)
-    
-    # transpose --> [N, T, V]
-    train_data = train_data[:,:,0].T
-    valid_data = valid_data[:,:,0].T
-    test_data = test_data[:,:,0].T
+    (train_data, train_labels, train_len, _, _,
+        valid_data, _, valid_len, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getECGData()
        
 elif args.dataset_id == 'JAP':        
     (train_data, train_labels, train_len, _, _,
-        valid_data, _, _, _, _,
+        valid_data, _, valid_len, _, _,
         test_data_orig, test_labels, test_len, _, _) = getJapDataFull()
 
 elif args.dataset_id == 'CHAR':        
     (train_data, train_labels, train_len, _, _,
-        valid_data, _, _, _, _,
+        valid_data, _, valid_len, _, _,
         test_data_orig, test_labels, test_len, _, _) = getCharDataFull()
-    
-else:
-    sys.exit('Invalid dataset_id')
-    
-if args.dataset_id == 'JAP' or args.dataset_id == 'CHAR':    
-    
-    # interpolate
-    train_data = interp_data(train_data, train_len)
-    test_data = interp_data(test_data_orig, test_len)
-    
-    # transpose and reshape --> [N, T, V] --> [N, T*V]
-    train_data = np.transpose(train_data,axes=[1,0,2])
-    train_data = np.reshape(train_data, (train_data.shape[0], train_data.shape[1]*train_data.shape[2]))
-    valid_data = train_data
-    test_data = np.transpose(test_data,axes=[1,0,2])
-    test_data = np.reshape(test_data, (test_data.shape[0], test_data.shape[1]*test_data.shape[2]))
 
-input_length = train_data.shape[1] # same for all inputs
+elif args.dataset_id == 'LIB':        
+    (train_data, train_labels, train_len, _, _,
+        valid_data, _, valid_len, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getLibras()    
+    
+elif args.dataset_id == 'WAF':        
+    (train_data, train_labels, train_len, _, _,
+        valid_data, _, valid_len, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getWafer()      
+else:
+    sys.exit('Invalid dataset_id')   
+       
+# interpolation
+if np.min(train_len) < np.max(train_len):
+    print('-- Data Interpolation --')
+    train_data = interp_data(train_data, train_len)
+    valid_data = interp_data(valid_data, valid_len)
+    test_data = interp_data(test_data_orig, test_len)
+else:
+    test_data = test_data_orig
+
+# transpose and reshape [T, N, V] --> [N, T, V] --> [N, T*V]
+train_data = np.transpose(train_data,axes=[1,0,2])
+train_data = np.reshape(train_data, (train_data.shape[0], train_data.shape[1]*train_data.shape[2]))
+valid_data = np.transpose(valid_data,axes=[1,0,2])
+valid_data = np.reshape(valid_data, (valid_data.shape[0], valid_data.shape[1]*valid_data.shape[2]))
+test_data = np.transpose(test_data,axes=[1,0,2])
+test_data = np.reshape(test_data, (test_data.shape[0], test_data.shape[1]*test_data.shape[2]))    
+
 print('\n**** Processing {}: Tr{}, Vs{}, Ts{} ****\n'.format(args.dataset_id, train_data.shape, valid_data.shape, test_data.shape))
 
+input_length = train_data.shape[1] # same for all inputs
 # ================= GRAPH =================
 
 # init session
@@ -221,36 +223,34 @@ tr_code = sess.run(code, {encoder_inputs: train_data})
 pred, pred_loss, ts_code = sess.run([dec_out, reconstruct_loss, code], {encoder_inputs: test_data})
 print('Test loss: {}'.format(pred_loss))
 
-# reverse transformations
-if args.dataset_id == 'JAP' or args.dataset_id == 'CHAR': 
-    pred = np.reshape(pred, (test_data_orig.shape[1], test_data_orig.shape[0], test_data_orig.shape[2]))
-    pred = np.transpose(pred,axes=[1,0,2])
-    pred = interp_data(pred, test_len, restore=True)
-    test_data = test_data_orig
+#plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
+#target = test_data[plot_idx1,:]
+#ts_out = pred[plot_idx1,:]
+#plt.plot(target, label='target')
+#plt.plot(ts_out, label='pred')
+#plt.legend(loc='upper right')
+#plt.show(block=False)  
 
-# loss
-ts_loss = np.mean((test_data[np.nonzero(test_data)]-pred[np.nonzero(test_data)])**2)
-print('Test MSE: {}'.format(ts_loss))
-print('Test Pearson correlation: {}'.format(corrcoef(
-    test_data[np.nonzero(test_data)],
-    pred[np.nonzero(test_data)])[0, 1]))
+# reverse transformations
+pred = np.reshape(pred, (test_data_orig.shape[1], test_data_orig.shape[0], test_data_orig.shape[2]))
+pred = np.transpose(pred,axes=[1,0,2])
+test_data = test_data_orig
+
+if np.min(train_len) < np.max(train_len):
+    print('-- Reverse Interpolation --')
+    pred = interp_data(pred, test_len, restore=True)
+
+# MSE and corr
+tot_mse, tot_corr = mse_and_corr(test_data, pred, test_len)
+print('Test MSE: {}\nTest Pearson correlation: {}'.format(tot_mse, tot_corr))
 
 # kNN classification on the codes
 acc = classify_with_knn(tr_code, train_labels[:, 0], ts_code, test_labels[:, 0])
 print('kNN acc: {}'.format(acc))
 
-
-# save MSE results on file
-with open('AE_results','a') as f:
-    f.write('code_size: '+str(args.code_size)+', MSE: '+str(ts_loss)+'\n')
-
-#plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
-#target = test_data[plot_idx1,:]
-#pred = ts_out[plot_idx1,:-1]
-#plt.plot(target, label='target')
-#plt.plot(pred, label='pred')
-#plt.legend(loc='upper right')
-#plt.show(block=False)  
+## save MSE results on file
+#with open('AE_results','a') as f:
+#    f.write('code_size: '+str(args.code_size)+', MSE: '+str(tot_mse)+'\n')
 
 train_writer.close()
 sess.close()

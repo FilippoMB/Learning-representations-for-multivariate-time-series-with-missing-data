@@ -104,7 +104,23 @@ def classify_with_knn(train_data, train_labels, val_data, val_labels, min_k=3, m
 
     return k_values, knn_acc
 
-
+def mse_and_corr(targets, preds, targets_len):
+    """
+    targets and preds must have shape [time_steps, samples, variables]
+    targets_len must have shape [samples,]
+    """
+    mse_list = []
+    corr_list = []
+    for i in range(targets.shape[1]):
+        len_i = targets_len[i]
+        test_data_i = targets[:len_i,i,:]
+        pred_i = preds[:len_i,i,:]
+        mse_list.append(np.mean((test_data_i-pred_i)**2))
+        corr_list.append(np.corrcoef(test_data_i.flatten(), pred_i.flatten())[0,1])
+    tot_mse = np.mean(mse_list)
+    tot_corr = np.mean(corr_list)
+    
+    return tot_mse, tot_corr
 
 def corr2_coeff(A,B):
     """

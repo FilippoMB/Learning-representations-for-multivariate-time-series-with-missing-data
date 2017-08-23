@@ -119,7 +119,7 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
 
 
 # ========== ECG TS DATA ==========
-def getECGData(tr_ratio = 0, rnd_order = False):
+def getECGData_OLD(tr_ratio = 0, rnd_order = False):
     datadir = 'ECG5000/ECG5000'
     train_data = np.loadtxt(datadir+'_TRAIN',delimiter=',')
     test_data = np.loadtxt(datadir+'_TEST',delimiter=',')
@@ -174,6 +174,42 @@ def getECGData(tr_ratio = 0, rnd_order = False):
             valid_data, valid_labels, valid_len, valid_targets, K_vs,
             test_data, test_labels, test_len, test_targets, K_ts)
 
+def getECGData():
+    datadir = 'ECG5000/ECG5000'
+    train_data = np.loadtxt(datadir+'_TRAIN',delimiter=',')
+    test_data = np.loadtxt(datadir+'_TEST',delimiter=',')
+    
+    # standardize the data
+    train_data[:,1:] = preprocessing.scale(train_data[:,1:], axis=1) 
+    test_data[:,1:] = preprocessing.scale(test_data[:,1:], axis=1) 
+
+    train_data, test_data = np.expand_dims(train_data,-1), np.expand_dims(test_data,-1) 
+    train_data = np.transpose(train_data,axes=[1,0,2]) # time_major=True
+    test_data = np.transpose(test_data,axes=[1,0,2]) # time_major=True
+    train_data, train_labels = train_data[1:,:,:], train_data[0,:,:]
+    test_data, test_labels = test_data[1:,:,:], test_data[0,:,:]
+           
+    train_len = [train_data.shape[0] for _ in range(train_data.shape[1])]
+    test_len = [test_data.shape[0] for _ in range(test_data.shape[1])]
+           
+    # valid == train   
+    valid_data = train_data
+    valid_labels = train_labels
+    valid_len = train_len
+    
+    # target outputs
+    train_targets = train_data
+    valid_targets = valid_data
+    test_targets = test_data
+    
+    # kernel matrices
+    K_tr = ideal_kernel(train_labels)
+    K_vs = ideal_kernel(valid_labels)
+    K_ts = ideal_kernel(test_labels)
+        
+    return (train_data, train_labels, train_len, train_targets, K_tr,
+            valid_data, valid_labels, valid_len, valid_targets, K_vs,
+            test_data, test_labels, test_len, test_targets, K_ts)
 
 # ========== JAP VOWELS DATA ==========
 def getJapData(kernel='TCK', inp='zero'):
@@ -321,39 +357,72 @@ def getCharDataFull():
         valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
         test_data, test_labels, test_len[:,0], test_targets, K_ts)
     
-# ========== LIBRAS ==========
-def getLibras():
-    lib_data = scipy.io.loadmat('Libras/Libras_prep.mat')
+# ========== WAFER FULL (vriable lengths) ==========
+def getWafer():
+    waf_data = scipy.io.loadmat('Wafer/WAF_full.mat')
+    train_data = waf_data['X']
+    train_labels = waf_data['Y']
+    train_len = waf_data['X_len']
+    test_data = waf_data['Xte']
+    test_labels = waf_data['Yte']
+    test_len = waf_data['Xte_len']
     
-    # ------ train -------
-    train_data = lib_data['X']
-    train_data = np.transpose(train_data,axes=[1,0,2]) # time_major=True
-    train_len = [train_data.shape[0] for _ in range(train_data.shape[1])]
-    train_labels = np.asarray(lib_data['Y'])
-    
-    # ----- test -------
-    test_data = lib_data['Xte'] 
-    test_data = np.transpose(test_data,axes=[1,0,2]) # time_major=True
-    test_len = [test_data.shape[0] for _ in range(test_data.shape[1])]
-    test_labels = np.asarray(lib_data['Yte'])
+    # time_major=True
+    train_data = np.transpose(train_data,axes=[1,0,2])
+    test_data = np.transpose(test_data,axes=[1,0,2]) 
     
     # valid == train   
     valid_data = train_data
     valid_labels = train_labels
-    valid_len = train_len
+    valid_len = train_len  
     
     # target outputs
     train_targets = train_data
     valid_targets = valid_data
     test_targets = test_data 
     
+    # TODO: add TCK/LPS kernel
     K_tr = ideal_kernel(train_labels)
     K_vs = ideal_kernel(valid_labels)
     K_ts = ideal_kernel(test_labels)
- 
-    return (train_data, train_labels, train_len, train_targets, K_tr,
-        valid_data, valid_labels, valid_len, valid_targets, K_vs,
-        test_data, test_labels, test_len, test_targets, K_ts)    
+    
+    return (train_data, train_labels, train_len[:,0], train_targets, K_tr,
+        valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
+        test_data, test_labels, test_len[:,0], test_targets, K_ts)    
+    
+# ========== LIBRAS ==========
+def getLibras():
+    lib_data = scipy.io.loadmat('Libras/LIB_full.mat')
+    
+    train_data = lib_data['X']
+    train_labels = lib_data['Y']
+    train_len = lib_data['X_len']
+    test_data = lib_data['Xte']
+    test_labels = lib_data['Yte']
+    test_len = lib_data['Xte_len']
+    
+    # time_major=True
+    train_data = np.transpose(train_data,axes=[1,0,2])
+    test_data = np.transpose(test_data,axes=[1,0,2]) 
+    
+    # valid == train   
+    valid_data = train_data
+    valid_labels = train_labels
+    valid_len = train_len  
+    
+    # target outputs
+    train_targets = train_data
+    valid_targets = valid_data
+    test_targets = test_data 
+    
+    # TODO: add TCK/LPS kernel
+    K_tr = ideal_kernel(train_labels)
+    K_vs = ideal_kernel(valid_labels)
+    K_ts = ideal_kernel(test_labels)
+    
+    return (train_data, train_labels, train_len[:,0], train_targets, K_tr,
+        valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
+        test_data, test_labels, test_len[:,0], test_targets, K_ts)    
     
 # ========== SYNTH VAR DATA ==========    
 def getVarData():
