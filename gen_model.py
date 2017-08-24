@@ -58,10 +58,11 @@ class s2s_ts_Model():
         
     def _init_cells(self):
         
-        if self.bidirect:
-            self.decoder_units = self.hidden_units*2
-        else:
-            self.decoder_units = self.hidden_units
+#        if self.bidirect:
+#            self.decoder_units = self.hidden_units*2
+#        else:
+#            self.decoder_units = self.hidden_units
+        self.decoder_units = self.hidden_units # TODO: remove decoder_units variable
             
         if self.cell_type == 'LSTM':
             self.encoder_fw_cell= MultiRNNCell([LSTMCell(self.hidden_units) for _ in range(self.num_layers)])
@@ -90,7 +91,7 @@ class s2s_ts_Model():
                     dtype=tf.float32))
                         
                   
-    def _init_bidirectional_encoder(self):  
+    def _init_bidirectional_encoder_old(self):  
         with tf.variable_scope("Encoder"): 
                         
             # not retrieving outputs (only for attention)
@@ -112,6 +113,40 @@ class s2s_ts_Model():
                 self.encoder_states = tuple(tf.concat((encoder_fw_state[i], encoder_bw_state[i]), 1) for i in range(self.num_layers))
                 
                 
+    def _init_bidirectional_encoder(self):  
+        with tf.variable_scope("Encoder"): 
+                        
+            # not retrieving outputs (only for attention)
+            ((_, _), (encoder_fw_state, encoder_bw_state)) = (tf.nn.bidirectional_dynamic_rnn(
+                    cell_fw=self.encoder_fw_cell,
+                    cell_bw=self.encoder_bw_cell,
+                    inputs=self.encoder_inputs,
+                    sequence_length=self.encoder_inputs_length,
+                    time_major=True,
+                    dtype=tf.float32))
+            
+            
+            # concatenate the states of fw and bw cells
+            conc_state = []
+            if isinstance(encoder_fw_state[-1], LSTMStateTuple):   
+                for i in range(self.num_layers):
+                    h_conc = tf.contrib.layers.fully_connected(tf.concat((encoder_fw_state[i].h, encoder_bw_state[i].h), 1),
+                                                              num_outputs=self.hidden_units,
+                                                              activation_fn=None)
+                    c_conc = tf.contrib.layers.fully_connected(tf.concat((encoder_fw_state[i].c, encoder_bw_state[i].c), 1),
+                                                              num_outputs=self.hidden_units,
+                                                              activation_fn=None)
+                    conc_state.append(LSTMStateTuple(c=c_conc, h=h_conc))
+                                                                          
+            elif isinstance(encoder_fw_state[-1], tf.Tensor):       
+                for i in range(self.num_layers):
+                    conc_state.append(tf.contrib.layers.fully_connected(tf.concat((encoder_fw_state[i], encoder_bw_state[i]), 1),
+                                                                      num_outputs=self.hidden_units,
+                                                                      activation_fn=None))
+                
+            self.encoder_states = tuple(conc_state)
+                
+                                
     def _init_decoder_state(self):
 
         # all decoder layers -> encoder last layer
@@ -262,14 +297,13 @@ class s2s_ts_Model():
             
             # reshape target outputs to match the size of the predicted outputs
             max_time_step = tf.reduce_max(self.encoder_inputs_length)
-            decoder_train_outputs = tf.concat([tf.slice(self.decoder_outputs, [0,0,0], [max_time_step, -1, -1]), 
-                                              self.EOS_slice], axis=0)
+            decoder_train_outputs = tf.slice(self.decoder_outputs, [0,0,0], [max_time_step, -1, -1])
             
             # mask padding positions outside the target sequence length with values 0 
-            decoder_mask = tf.transpose(tf.sequence_mask(self.encoder_inputs_length+1, max_time_step+1, dtype=tf.float32))
-            self.teach_outputs = tf.expand_dims(decoder_mask,-1)*self.teach_outputs
-            self.inf_outputs = tf.expand_dims(decoder_mask,-1)*self.inf_outputs
-            self.sched_outputs = tf.expand_dims(decoder_mask,-1)*self.sched_outputs
+            decoder_mask = tf.transpose(tf.sequence_mask(self.encoder_inputs_length, max_time_step, dtype=tf.float32))
+            self.teach_outputs = tf.expand_dims(decoder_mask,-1)*self.teach_outputs[1:,:,:] # discard the first output
+            self.inf_outputs = tf.expand_dims(decoder_mask,-1)*self.inf_outputs[1:,:,:] # discard the first output
+            self.sched_outputs = tf.expand_dims(decoder_mask,-1)*self.sched_outputs[1:,:,:] # discard the first output
             
             parameters = tf.trainable_variables()
             optimizer = tf.train.AdamOptimizer(self.learning_rate)

@@ -6,7 +6,7 @@ import time
 import tensorflow as tf
 from TS_datasets import getSynthData, getECGData, getJapDataFull, getLibras, getCharDataFull, getWafer
 import argparse, sys
-from utils import classify_with_knn, mse_and_corr
+from utils import classify_with_knn, mse_and_corr, reverse_input
 
 plot_on = 0
 
@@ -14,7 +14,7 @@ plot_on = 0
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='LIB', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
-parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
+parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=30, help="number of samples in each batch", type=int)
@@ -26,7 +26,7 @@ parser.add_argument("--reverse_input", dest='reverse_input', action='store_true'
 parser.add_argument("--sched_prob", default=0.9, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--w_align", default=0.0, help="kernel alignment weight", type=float)
 parser.add_argument("--w_l2", default=0.0, help="l2 norm regularization weight", type=float)
-parser.set_defaults(bidirect=False)
+parser.set_defaults(bidirect=True)
 parser.set_defaults(reverse_input=False)
 args = parser.parse_args()
 
@@ -87,9 +87,9 @@ print('\n**** Processing {}: Tr{}, Vs{}, Ts{} ****\n'.format(args.dataset_id, tr
 
 # revert time
 if config['reverse_input']:
-    train_data = train_data[::-1,:,:]
-    valid_data = valid_data[::-1,:,:]
-    test_data = test_data[::-1,:,:]
+    train_data = reverse_input(train_data, train_len)
+    valid_data = reverse_input(valid_data, valid_len)
+    test_data = reverse_input(test_data, test_len)
 
 # sort validation data (for visualize the learned K)
 sort_idx = np.argsort(valid_labels,axis=0)[:,0]

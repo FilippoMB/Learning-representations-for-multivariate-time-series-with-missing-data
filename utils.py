@@ -139,3 +139,13 @@ def corr2_coeff(A,B):
 
     # Finally get corr coeff
     return np.dot(A_mA, B_mB.T)/np.sqrt(np.dot(ssA[:, None], ssB[None]))
+
+def reverse_input(data, data_len):
+    
+    data_reversed = np.zeros_like(data)
+    for i in range(data_len.shape[0]):
+        len_i = data_len[i]
+        data_i = data[:len_i,i,:]
+        data_reversed[:len_i,i,:] = data_i[::-1,:]
+    
+    return data_reversed
