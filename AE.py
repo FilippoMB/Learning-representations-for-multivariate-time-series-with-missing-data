@@ -1,6 +1,6 @@
 import tensorflow as tf
 import argparse, sys
-from TS_datasets import getSynthData, getECGData, getJapDataFull, getCharDataFull, getLibras, getWafer
+from TS_datasets import getSynthData, getECGData, getJapDataFull, getCharDataFull, getLibras, getWafer, getIncreasingNum
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,7 +11,7 @@ plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='LIB', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--dataset_id", default='NUM', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--code_size", default=5, help="size of the code", type=int)
 parser.add_argument("--w_reg", default=0.001, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
@@ -54,6 +54,11 @@ elif args.dataset_id == 'WAF':
     (train_data, train_labels, train_len, _, _,
         valid_data, _, valid_len, _, _,
         test_data_orig, test_labels, test_len, _, _) = getWafer()      
+    
+elif args.dataset_id == 'NUM':        
+    (train_data, train_labels, train_len, _, _,
+        valid_data, _, valid_len, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getIncreasingNum()  
 else:
     sys.exit('Invalid dataset_id')   
        

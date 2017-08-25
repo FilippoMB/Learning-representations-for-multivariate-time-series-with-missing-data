@@ -1,4 +1,4 @@
-from TS_datasets import getSynthData, getECGData, getJapDataFull, getCharDataFull, getLibras, getWafer
+from TS_datasets import getSynthData, getECGData, getJapDataFull, getCharDataFull, getLibras, getWafer, getIncreasingNum
 import numpy as np
 from sklearn.decomposition import PCA
 import argparse, sys
@@ -7,7 +7,7 @@ from utils import interp_data, classify_with_knn, mse_and_corr
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='LIB', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--dataset_id", default='NUM', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--num_comp", default=5, help="number of PCA components", type=int)
 args = parser.parse_args()
 print(args)
@@ -44,6 +44,11 @@ elif args.dataset_id == 'WAF':
     (train_data, train_labels, train_len, _, _,
         _, _, _, _, _,
         test_data_orig, test_labels, test_len, _, _) = getWafer()     
+    
+elif args.dataset_id == 'NUM':        
+    (train_data, train_labels, train_len, _, _,
+        _, _, _, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getIncreasingNum()    
 else:
     sys.exit('Invalid dataset_id')
 

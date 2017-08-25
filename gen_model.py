@@ -132,17 +132,17 @@ class s2s_ts_Model():
                 for i in range(self.num_layers):
                     h_conc = tf.contrib.layers.fully_connected(tf.concat((encoder_fw_state[i].h, encoder_bw_state[i].h), 1),
                                                               num_outputs=self.hidden_units,
-                                                              activation_fn=None)
+                                                              activation_fn=tf.nn.tanh)
                     c_conc = tf.contrib.layers.fully_connected(tf.concat((encoder_fw_state[i].c, encoder_bw_state[i].c), 1),
                                                               num_outputs=self.hidden_units,
-                                                              activation_fn=None)
+                                                              activation_fn=tf.nn.tanh)
                     conc_state.append(LSTMStateTuple(c=c_conc, h=h_conc))
                                                                           
-            elif isinstance(encoder_fw_state[-1], tf.Tensor):       
+            elif isinstance(encoder_fw_state[i], tf.Tensor):       
                 for i in range(self.num_layers):
                     conc_state.append(tf.contrib.layers.fully_connected(tf.concat((encoder_fw_state[i], encoder_bw_state[i]), 1),
                                                                       num_outputs=self.hidden_units,
-                                                                      activation_fn=None))
+                                                                      activation_fn=tf.nn.tanh))
                 
             self.encoder_states = tuple(conc_state)
                 
@@ -192,7 +192,7 @@ class s2s_ts_Model():
             _, d_batch_size, _ = tf.unstack(tf.shape(self.encoder_inputs)) 
             self.EOS_slice = tf.ones([1,d_batch_size,self.input_dim], dtype=tf.float32) * self.EOS
             decoder_train_inputs = tf.concat([self.EOS_slice, self.decoder_outputs], axis=0)
-            decoder_train_lengths = self.encoder_inputs_length + 1
+            decoder_train_lengths = self.encoder_inputs_length + 1 # 1 extra length for the EOS value
             
             # projection of decoder output
             self.output_layer = layers_core.Dense(self.input_dim, use_bias=False, name="output_proj")
@@ -299,11 +299,13 @@ class s2s_ts_Model():
             max_time_step = tf.reduce_max(self.encoder_inputs_length)
             decoder_train_outputs = tf.slice(self.decoder_outputs, [0,0,0], [max_time_step, -1, -1])
             
-            # mask padding positions outside the target sequence length with values 0 
+            # mask padding elements beyond the target sequence length with values 0 
             decoder_mask = tf.transpose(tf.sequence_mask(self.encoder_inputs_length, max_time_step, dtype=tf.float32))
-            self.teach_outputs = tf.expand_dims(decoder_mask,-1)*self.teach_outputs[1:,:,:] # discard the first output
-            self.inf_outputs = tf.expand_dims(decoder_mask,-1)*self.inf_outputs[1:,:,:] # discard the first output
-            self.sched_outputs = tf.expand_dims(decoder_mask,-1)*self.sched_outputs[1:,:,:] # discard the first output
+            
+            # discard the first output (produced when EOS is fed in) and apply the mask
+            self.teach_outputs = tf.expand_dims(decoder_mask,-1)*self.teach_outputs[1:,:,:]
+            self.inf_outputs = tf.expand_dims(decoder_mask,-1)*self.inf_outputs[1:,:,:]
+            self.sched_outputs = tf.expand_dims(decoder_mask,-1)*self.sched_outputs[1:,:,:] 
             
             parameters = tf.trainable_variables()
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
@@ -329,6 +331,9 @@ class s2s_ts_Model():
             #  scheduled sampling loss
             self.sched_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.sched_outputs)
             
+            # Huber loss
+#            self.sched_loss = tf.losses.huber_loss(labels=decoder_train_outputs, predictions=self.sched_outputs, delta=0.5)
+            
 #            # correntropy loss
 #            sig = 2
 #            cnum = 1 - tf.reduce_mean( tf.exp(- tf.pow(decoder_train_outputs - self.sched_outputs,2))/(2*sig**2) )
@@ -347,14 +352,14 @@ class s2s_ts_Model():
             
             self.update_step = optimizer.apply_gradients(zip(clipped_gradients, parameters))
                         
-            # ============= TENSORBOARD =============             
-            mean_grads = tf.reduce_mean([tf.reduce_mean(grad) for grad in gradients])
-            tf.summary.scalar('mean_grads', mean_grads)
-            tf.summary.scalar('teach_loss', self.teach_loss)
-            tf.summary.scalar('inf_loss', self.inf_loss)
-            tf.summary.scalar('sched_loss', self.sched_loss)
-            tf.summary.scalar('k_loss', self.k_loss)
-            tvars = tf.trainable_variables()
-            for tvar in tvars:
-                tf.summary.histogram(tvar.name.replace(':','_'), tvar)
-            self.merged_summary = tf.summary.merge_all()
+#            # ============= TENSORBOARD =============             
+#            mean_grads = tf.reduce_mean([tf.reduce_mean(grad) for grad in gradients])
+#            tf.summary.scalar('mean_grads', mean_grads)
+#            tf.summary.scalar('teach_loss', self.teach_loss)
+#            tf.summary.scalar('inf_loss', self.inf_loss)
+#            tf.summary.scalar('sched_loss', self.sched_loss)
+#            tf.summary.scalar('k_loss', self.k_loss)
+#            tvars = tf.trainable_variables()
+#            for tvar in tvars:
+#                tf.summary.histogram(tvar.name.replace(':','_'), tvar)
+#            self.merged_summary = tf.summary.merge_all()

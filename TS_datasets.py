@@ -89,7 +89,7 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
     train_data = np.expand_dims(train_data,-1)
     train_data = np.transpose(train_data,axes=[1,0,2]) # time_major=True
     train_targets = train_data
-    train_len = [train_data.shape[0] for _ in range(train_data.shape[1])]
+    train_len = np.asarray([train_data.shape[0] for _ in range(train_data.shape[1])])
     K_tr = np.ones([tr_data_samples,tr_data_samples]) # just for compatibility
     train_labels = np.ones([tr_data_samples,1]) # just for compatibility
     
@@ -99,7 +99,7 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
     valid_data = np.expand_dims(valid_data,-1)
     valid_data = np.transpose(valid_data,axes=[1,0,2]) # time_major=True
     valid_targets = valid_data
-    valid_len = [valid_data.shape[0] for _ in range(valid_data.shape[1])]
+    valid_len = np.asarray([valid_data.shape[0] for _ in range(valid_data.shape[1])])
     K_vs = np.ones([vs_data_samples,vs_data_samples]) # just for compatibility
     valid_labels = np.ones([vs_data_samples,1]) # just for compatibility
     
@@ -109,7 +109,7 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
     test_data = np.expand_dims(test_data,-1)
     test_data = np.transpose(test_data,axes=[1,0,2]) # time_major=True
     test_targets = test_data
-    test_len = [test_data.shape[0] for _ in range(test_data.shape[1])]
+    test_len = np.asarray([test_data.shape[0] for _ in range(test_data.shape[1])])
     K_ts = np.ones([ts_data_samples,ts_data_samples]) # just for compatibility
     test_labels = np.ones([ts_data_samples,1]) # just for compatibility
         
@@ -118,6 +118,40 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
             test_data, test_labels, test_len, test_targets, K_ts)
 
 
+# ========== ECG TS DATA ==========
+def getIncreasingNum():
+    train_data = np.zeros([50, 100, 1])
+    test_data = np.zeros([50, 200, 1])
+    
+    for i in range(train_data.shape[1]):
+        train_data[:,i,:] = np.expand_dims(np.arange(i,i+50),-1)        
+    for i in range(test_data.shape[1]):
+        test_data[:,i,:] = np.expand_dims(np.arange(train_data.shape[1]+i,train_data.shape[1]+i+50),-1)
+        
+    train_data[:,:,0] = preprocessing.scale(train_data[:,:,0], axis=0) 
+    test_data[:,:,0] = preprocessing.scale(test_data[:,:,0], axis=0)     
+    valid_data = train_data
+    
+    
+    train_labels = np.ones([train_data.shape[1],1])    
+    valid_labels = train_labels
+    test_labels = np.ones([test_data.shape[1],1])
+    
+    train_len = np.asarray([train_data.shape[0] for _ in range(train_data.shape[1])])
+    valid_len = train_len
+    test_len = np.asarray([test_data.shape[0] for _ in range(test_data.shape[1])])
+    
+    train_targets = train_data
+    valid_targets = train_targets
+    test_targets = test_data
+    K_tr = np.ones([train_data.shape[1],train_data.shape[1]])
+    K_vs = K_tr
+    K_ts = np.ones([test_data.shape[1],test_data.shape[1]])
+    
+    return (train_data, train_labels, train_len, train_targets, K_tr,
+            valid_data, valid_labels, valid_len, valid_targets, K_vs,
+            test_data, test_labels, test_len, test_targets, K_ts)    
+    
 # ========== ECG TS DATA ==========
 def getECGData_OLD(tr_ratio = 0, rnd_order = False):
     datadir = 'ECG5000/ECG5000'
