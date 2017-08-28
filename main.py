@@ -12,22 +12,22 @@ plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='SYNTH', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
+parser.add_argument("--dataset_id", default='SIN', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
 parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
-parser.add_argument("--hidden_units", default=10, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
+parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--decoder_init", default='all', help="init decoder with last state of only last layer (last, zero, all)", type=str)
 parser.add_argument("--sched_prob", default=1.0, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
-parser.add_argument("--batch_size", default=50, help="number of samples in each batch", type=int)
+parser.add_argument("--batch_size", default=20, help="number of samples in each batch", type=int)
 parser.add_argument("--w_align", default=0.0, help="kernel alignment weight", type=float)
 parser.add_argument("--w_l2", default=0.0, help="l2 norm regularization weight", type=float)
-parser.add_argument("--num_epochs", default=20000, help="number of epochs in training", type=int)
+parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--bidirect", dest='bidirect', action='store_true', help="use an encoder which is bidirectional")
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
-parser.set_defaults(bidirect=False)
-parser.set_defaults(reverse_input=True)
+parser.set_defaults(bidirect=True)
+parser.set_defaults(reverse_input=False)
 args = parser.parse_args()
 
 config = dict(cell_type = args.cell_type,
@@ -81,7 +81,12 @@ elif args.dataset_id == 'WAF':
 elif args.dataset_id == 'SIN':        
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
-        test_data, test_labels, test_len, test_targets, _) = getSins()    
+        test_data, test_labels, test_len, test_targets, _) = getSins() 
+
+elif args.dataset_id == 'MSO':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, _) = getSins()  
 else:
     sys.exit('Invalid dataset_id')
 

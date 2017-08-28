@@ -119,9 +119,9 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
 
 
 # ========== SINUSOIDS WITH RANDOM FREQ ==========
-def getSins(min_len=20, max_len=80):
+def getSins(min_len=10, max_len=101):
     num_train_data = 100
-    num_test_data = 200
+    num_test_data = 10000
     train_data = np.zeros([max_len, num_train_data, 1])
     test_data = np.zeros([max_len, num_test_data, 1])
     
@@ -178,12 +178,12 @@ def getMSO(min_len=20, max_len=80):
     for i in range(train_data.shape[1]):
         start_idx = np.random.randint(0, high=tot_len-max_len)
         ts_len = np.random.randint(min_len, high=max_len)
-        train_data[:,i,:] = np.expand_dims(X[start_idx:start_idx+ts_len],-1)
+        train_data[:ts_len,i,:] = np.expand_dims(X[start_idx:start_idx+ts_len],-1)
         
     for i in range(test_data.shape[1]):
         start_idx = np.random.randint(0, high=tot_len-max_len)
         ts_len = np.random.randint(min_len, high=max_len)
-        test_data[:,i,:] = np.expand_dims(X[start_idx:start_idx+ts_len],-1)
+        test_data[:ts_len,i,:] = np.expand_dims(X[start_idx:start_idx+ts_len],-1)
        
     valid_data = train_data
     

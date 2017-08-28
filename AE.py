@@ -1,6 +1,6 @@
 import tensorflow as tf
 import argparse, sys
-from TS_datasets import getSynthData, getECGData, getJapDataFull, getCharDataFull, getLibras, getWafer, getSins
+from TS_datasets import getSynthData, getECGData, getJapDataFull, getCharDataFull, getLibras, getWafer, getSins, getMSO
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,9 +13,9 @@ plot_on = 0
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='SIN', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--code_size", default=5, help="size of the code", type=int)
-parser.add_argument("--w_reg", default=0.001, help="weight of the regularization in the loss function", type=float)
+parser.add_argument("--w_reg", default=0.002, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
-parser.add_argument("--batch_size", default=60, help="number of samples in each batch", type=int)
+parser.add_argument("--batch_size", default=20, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 parser.add_argument("--hidden_size", default=30, help="size of the code", type=int)
@@ -58,7 +58,12 @@ elif args.dataset_id == 'WAF':
 elif args.dataset_id == 'SIN':        
     (train_data, train_labels, train_len, _, _,
         valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getSins()  
+        test_data_orig, test_labels, test_len, _, _) = getSins()
+    
+elif args.dataset_id == 'MSO':        
+    (train_data, train_labels, train_len, _, _,
+        valid_data, _, valid_len, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getMSO()  
 else:
     sys.exit('Invalid dataset_id')   
        
@@ -165,7 +170,7 @@ max_batches = train_data.shape[0]//batch_size
 loss_track = []
 min_vs_loss = np.infty
 model_name = "/tmp/tkae_models/m_"+str(time.strftime("%Y%m%d-%H%M%S"))+".ckpt"
-train_writer = tf.summary.FileWriter('/tmp/tensorboard', graph=sess.graph)
+#train_writer = tf.summary.FileWriter('/tmp/tensorboard', graph=sess.graph)
 saver = tf.train.Saver()
 
 try:
@@ -186,12 +191,13 @@ try:
             print('Ep: {}'.format(ep))
             
             fdvs = {encoder_inputs: valid_data}
-            outvs, lossvs, summary = sess.run([dec_out, reconstruct_loss, merged_summary], fdvs)
-            train_writer.add_summary(summary, ep)
+            outvs, lossvs = sess.run([dec_out, reconstruct_loss], fdvs) #summary, merged_summary
+            #train_writer.add_summary(summary, ep)
             print('VS loss=%.3f -- TR min_loss=.%3f'%(lossvs, np.min(loss_track)))     
             
             # Save model yielding best results on validation
             if lossvs < min_vs_loss:
+                min_vs_loss = lossvs
                 tf.add_to_collection("encoder_inputs",encoder_inputs)
                 tf.add_to_collection("dec_out",dec_out)
                 tf.add_to_collection("reconstruct_loss",reconstruct_loss)
@@ -226,7 +232,7 @@ saver.restore(sess, model_name)
 
 tr_code = sess.run(code, {encoder_inputs: train_data})
 pred, pred_loss, ts_code = sess.run([dec_out, reconstruct_loss, code], {encoder_inputs: test_data})
-print('Test loss: {}'.format(pred_loss))
+print('Test loss: %.3f'%(np.mean((pred-test_data)**2)))
 
 #plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
 #target = test_data[plot_idx1,:]
@@ -246,16 +252,12 @@ if np.min(train_len) < np.max(train_len):
     pred = interp_data(pred, test_len, restore=True)
 
 # MSE and corr
-tot_mse, tot_corr = mse_and_corr(test_data, pred, test_len)
-print('Test MSE: {}\nTest Pearson correlation: {}'.format(tot_mse, tot_corr))
+test_mse, test_corr = mse_and_corr(test_data, pred, test_len)
+print('Test MSE: %.3f\nTest Pearson correlation: %.3f'%(test_mse, test_corr))
 
 # kNN classification on the codes
 acc = classify_with_knn(tr_code, train_labels[:, 0], ts_code, test_labels[:, 0])
 print('kNN acc: {}'.format(acc))
 
-## save MSE results on file
-#with open('AE_results','a') as f:
-#    f.write('code_size: '+str(args.code_size)+', MSE: '+str(tot_mse)+'\n')
-
-train_writer.close()
+#train_writer.close()
 sess.close()
