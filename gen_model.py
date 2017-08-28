@@ -178,9 +178,9 @@ class s2s_ts_Model():
             else:
                 to_be_concat.append(state)
 
-        if self.decoder_init == 'all': # context vector is the last state of all encoder layers
+        if self.decoder_init == 'all': # context vector is the first state of each decoder layer
             self.context_vector = tf.concat(to_be_concat,1)
-        else: # context vector is the last state of the last encoder layer only
+        else: # context vector is first state of the first decoder layer
             self.context_vector = to_be_concat[0]
     
         # inner products of the context vectors
@@ -298,11 +298,14 @@ class s2s_ts_Model():
             # reshape target outputs to match the size of the predicted outputs
             max_time_step = tf.reduce_max(self.encoder_inputs_length)
             decoder_train_outputs = tf.slice(self.decoder_outputs, [0,0,0], [max_time_step, -1, -1])
+#            decoder_train_outputs = tf.slice(tf.concat([self.decoder_outputs, self.EOS_slice], axis=0), [0,0,0], [max_time_step+1, -1, -1])
+#            decoder_train_outputs = tf.concat([self.decoder_outputs, self.EOS_slice], axis=0)
             
             # mask padding elements beyond the target sequence length with values 0 
+#            decoder_mask = tf.transpose(tf.sequence_mask(self.encoder_inputs_length+1, max_time_step+1, dtype=tf.float32))
             decoder_mask = tf.transpose(tf.sequence_mask(self.encoder_inputs_length, max_time_step, dtype=tf.float32))
-            
-            # discard the first output (produced when EOS is fed in) and apply the mask
+#            
+#            # discard the first output (produced when EOS is fed in) and apply the mask
             self.teach_outputs = tf.expand_dims(decoder_mask,-1)*self.teach_outputs[1:,:,:]
             self.inf_outputs = tf.expand_dims(decoder_mask,-1)*self.inf_outputs[1:,:,:]
             self.sched_outputs = tf.expand_dims(decoder_mask,-1)*self.sched_outputs[1:,:,:] 
@@ -345,6 +348,7 @@ class s2s_ts_Model():
             
             # ============= TOT LOSS =============
             self.tot_loss = self.sched_loss + self.w_align*self.k_loss + self.w_l2*self.reg_loss
+#            self.tot_loss = self.inf_loss
                         
             # Calculate and clip gradients
             gradients = tf.gradients(self.tot_loss, parameters)

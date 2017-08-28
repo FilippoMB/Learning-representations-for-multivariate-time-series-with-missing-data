@@ -4,30 +4,30 @@ import matplotlib.pyplot as plt
 np.set_printoptions(precision=2)
 import time
 import tensorflow as tf
-from TS_datasets import getSynthData, getECGData, getJapDataFull, getLibras, getCharDataFull, getWafer, getIncreasingNum
+from TS_datasets import getSynthData, getECGData, getJapDataFull, getLibras, getCharDataFull, getWafer, getSins
 import argparse, sys
 from utils import classify_with_knn, mse_and_corr, reverse_input
 
-plot_on = 1
+plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='SYNTH', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
-parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
+parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=10, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--decoder_init", default='all', help="init decoder with last state of only last layer (last, zero, all)", type=str)
 parser.add_argument("--sched_prob", default=1.0, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
-parser.add_argument("--batch_size", default=250, help="number of samples in each batch", type=int)
+parser.add_argument("--batch_size", default=50, help="number of samples in each batch", type=int)
 parser.add_argument("--w_align", default=0.0, help="kernel alignment weight", type=float)
 parser.add_argument("--w_l2", default=0.0, help="l2 norm regularization weight", type=float)
-parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
+parser.add_argument("--num_epochs", default=20000, help="number of epochs in training", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--bidirect", dest='bidirect', action='store_true', help="use an encoder which is bidirectional")
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
-parser.set_defaults(bidirect=True)
-parser.set_defaults(reverse_input=False)
+parser.set_defaults(bidirect=False)
+parser.set_defaults(reverse_input=True)
 args = parser.parse_args()
 
 config = dict(cell_type = args.cell_type,
@@ -50,8 +50,8 @@ if args.dataset_id == 'SYNTH':
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, _) = getSynthData(name='Lorentz', 
-                                                                tr_data_samples=2000, 
-                                                                vs_data_samples=2000, 
+                                                                tr_data_samples=200, 
+                                                                vs_data_samples=200, 
                                                                 ts_data_samples=2000)
 elif args.dataset_id == 'ECG':
     (train_data, train_labels, train_len, train_targets, K_tr,
@@ -78,10 +78,10 @@ elif args.dataset_id == 'WAF':
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, _) = getWafer()
     
-elif args.dataset_id == 'NUM':        
+elif args.dataset_id == 'SIN':        
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
-        test_data, test_labels, test_len, test_targets, _) = getIncreasingNum()    
+        test_data, test_labels, test_len, test_targets, _) = getSins()    
 else:
     sys.exit('Invalid dataset_id')
 
@@ -169,16 +169,18 @@ try:
              inf_lossvs, 
              teach_outvs, 
              teach_lossvs, 
+             tot_loss,
              reg_loss, 
              vs_code_K, 
 #             summary
              ) = (sess.run([G.inf_outputs, 
-                                   G.inf_loss, 
-                                   G.teach_outputs, 
-                                   G.teach_loss, 
-                                   G.reg_loss, 
-                                   G.code_K, 
-                                   ], fdvs)) #G.merged_summary
+                           G.inf_loss, 
+                           G.teach_outputs, 
+                           G.teach_loss,
+                           G.tot_loss,
+                           G.reg_loss, 
+                           G.code_K, 
+                           ], fdvs)) #G.merged_summary
 #            train_writer.add_summary(summary, ep)
             
             fdts = {G.encoder_inputs: test_data,
@@ -186,11 +188,12 @@ try:
             inf_outs = sess.run(G.inf_outputs, fdts)            
             test_mse, _ = mse_and_corr(test_targets, inf_outs, test_len)
             
-            print('TS: MSE=%.3f -- VS: inf_loss=%.3f, teach_loss=%.3f, reg_loss=%.3f -- TR: min_loss=.%3f'
-                  %(test_mse, inf_lossvs, teach_lossvs, reg_loss*args.w_l2, np.min(inf_loss_track)))     
+            print('TS: MSE=%.3f -- VS: tot_loss=%.3f inf_loss=%.3f, teach_loss=%.3f, reg_loss=%.3f -- TR: min_loss=%.3f'
+                  %(test_mse, tot_loss, inf_lossvs, teach_lossvs, reg_loss*args.w_l2, np.min(inf_loss_track)))     
             
             # Save model yielding best results on validation
             if inf_lossvs < min_vs_loss:
+                min_vs_loss = inf_lossvs
                 tf.add_to_collection("encoder_inputs",G.encoder_inputs)
                 tf.add_to_collection("encoder_inputs_length",G.encoder_inputs_length)
                 tf.add_to_collection("decoder_outputs",G.decoder_outputs)
@@ -209,9 +212,10 @@ try:
                 target = valid_targets[:,plot_idx1,plot_idx2]
                 inf_pred = inf_outvs[:,plot_idx1,plot_idx2]
                 teach_pred = teach_outvs[:,plot_idx1,plot_idx2]
-                plt.plot(target, label='target')
-                plt.plot(inf_pred, label='inf')
-                plt.plot(teach_pred, label='teach')
+                plt.plot(target, linewidth=1.5, label='target')
+                plt.plot(teach_pred, '--', label='teach')
+                plt.plot(inf_pred, linewidth=1.5, label='inf')
+                
                 plt.legend(loc='best')
                 plt.show(block=False)  
                                                     

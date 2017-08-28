@@ -118,20 +118,74 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
             test_data, test_labels, test_len, test_targets, K_ts)
 
 
-# ========== ECG TS DATA ==========
-def getIncreasingNum():
-    train_data = np.zeros([50, 100, 1])
-    test_data = np.zeros([50, 200, 1])
+# ========== SINUSOIDS WITH RANDOM FREQ ==========
+def getSins(min_len=20, max_len=80):
+    num_train_data = 100
+    num_test_data = 200
+    train_data = np.zeros([max_len, num_train_data, 1])
+    test_data = np.zeros([max_len, num_test_data, 1])
+    
+    train_len = np.zeros([num_train_data,],dtype=int)
+    test_len = np.zeros([num_test_data,],dtype=int)
     
     for i in range(train_data.shape[1]):
-        train_data[:,i,:] = np.expand_dims(np.arange(i,i+50),-1)        
-    for i in range(test_data.shape[1]):
-        test_data[:,i,:] = np.expand_dims(np.arange(train_data.shape[1]+i,train_data.shape[1]+i+50),-1)
+        m = np.random.rand()
+        b = np.random.rand()
+        n = np.random.randint(min_len,high=max_len)
+        x_i = np.expand_dims(np.sin(np.arange(0,n)*m+b),-1)
+        train_len[i] = n
+        train_data[:n,i,:] = x_i
         
-    train_data[:,:,0] = preprocessing.scale(train_data[:,:,0], axis=0) 
-    test_data[:,:,0] = preprocessing.scale(test_data[:,:,0], axis=0)     
+    for i in range(test_data.shape[1]):
+        m = np.random.rand()
+        b = np.random.rand()
+        n = np.random.randint(min_len,high=max_len)
+        x_i = np.expand_dims(np.sin(np.arange(0,n)*m+b),-1)
+        test_len[i] = n
+        test_data[:n,i,:] = x_i
+           
     valid_data = train_data
+    valid_len = train_len
     
+    train_labels = np.ones([train_data.shape[1],1])    
+    valid_labels = train_labels
+    test_labels = np.ones([test_data.shape[1],1])
+        
+    train_targets = train_data
+    valid_targets = train_targets
+    test_targets = test_data
+    
+    K_tr = np.ones([train_data.shape[1],train_data.shape[1]])
+    K_vs = K_tr
+    K_ts = np.ones([test_data.shape[1],test_data.shape[1]])
+    
+    return (train_data, train_labels, train_len, train_targets, K_tr,
+            valid_data, valid_labels, valid_len, valid_targets, K_vs,
+            test_data, test_labels, test_len, test_targets, K_ts)    
+    
+def getMSO(min_len=20, max_len=80):
+    num_train_data = 100
+    num_test_data = 200    
+    
+    tot_len = 50000
+    t = np.arange(0,tot_len)
+    X = np.sin(0.2*t) + np.sin(0.311*t) + np.sin(0.42*t)  + np.sin(0.51*t) + np.sin(0.63*t) #+ np.sin(0.74*t) + np.sin(0.81*t);
+    X = (X - np.mean(X))/np.std(X)
+       
+    train_data = np.zeros([max_len, num_train_data, 1])
+    test_data = np.zeros([max_len, num_test_data, 1])
+    
+    for i in range(train_data.shape[1]):
+        start_idx = np.random.randint(0, high=tot_len-max_len)
+        ts_len = np.random.randint(min_len, high=max_len)
+        train_data[:,i,:] = np.expand_dims(X[start_idx:start_idx+ts_len],-1)
+        
+    for i in range(test_data.shape[1]):
+        start_idx = np.random.randint(0, high=tot_len-max_len)
+        ts_len = np.random.randint(min_len, high=max_len)
+        test_data[:,i,:] = np.expand_dims(X[start_idx:start_idx+ts_len],-1)
+       
+    valid_data = train_data
     
     train_labels = np.ones([train_data.shape[1],1])    
     valid_labels = train_labels
@@ -150,7 +204,7 @@ def getIncreasingNum():
     
     return (train_data, train_labels, train_len, train_targets, K_tr,
             valid_data, valid_labels, valid_len, valid_targets, K_vs,
-            test_data, test_labels, test_len, test_targets, K_ts)    
+            test_data, test_labels, test_len, test_targets, K_ts)  
     
 # ========== ECG TS DATA ==========
 def getECGData_OLD(tr_ratio = 0, rnd_order = False):
