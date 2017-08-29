@@ -9,8 +9,6 @@ import argparse, sys
 from utils import classify_with_knn, mse_and_corr, reverse_input
 
 plot_on = 0
-my_seed = 1
-np.random.seed(my_seed)
 
 # parse input data
 parser = argparse.ArgumentParser()
@@ -28,7 +26,7 @@ parser.add_argument("--num_epochs", default=5000, help="number of epochs in trai
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--bidirect", dest='bidirect', action='store_true', help="use an encoder which is bidirectional")
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
-parser.set_defaults(bidirect=True)
+parser.set_defaults(bidirect=False)
 parser.set_defaults(reverse_input=False)
 args = parser.parse_args()
 
@@ -110,9 +108,7 @@ valid_targets = valid_targets[:,sort_idx,:]
 # ================= GRAPH =================
 tf.reset_default_graph() # needed when working with iPython
 sess = tf.Session()
-tf.set_random_seed(my_seed)
 G = s2s_ts_Model(config)
-tf.set_random_seed(my_seed)
 sess.run(tf.global_variables_initializer())
 
 # trainable parameters count
