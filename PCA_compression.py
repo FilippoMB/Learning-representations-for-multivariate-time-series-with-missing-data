@@ -7,7 +7,7 @@ from utils import interp_data, classify_with_knn, mse_and_corr
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='SIN', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--dataset_id", default='MSO', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--num_comp", default=5, help="number of PCA components", type=int)
 args = parser.parse_args()
 print(args)

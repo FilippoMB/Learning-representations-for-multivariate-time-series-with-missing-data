@@ -163,7 +163,7 @@ def getSins(min_len=10, max_len=101):
             valid_data, valid_labels, valid_len, valid_targets, K_vs,
             test_data, test_labels, test_len, test_targets, K_ts)    
     
-def getMSO(min_len=20, max_len=80):
+def getMSO(min_len=5, max_len=100):
     num_train_data = 100
     num_test_data = 200    
     
@@ -173,31 +173,32 @@ def getMSO(min_len=20, max_len=80):
     X = (X - np.mean(X))/np.std(X)
        
     train_data = np.zeros([max_len, num_train_data, 1])
-    test_data = np.zeros([max_len, num_test_data, 1])
-    
+    train_len = np.zeros([num_train_data,],dtype=int)   
     for i in range(train_data.shape[1]):
         start_idx = np.random.randint(0, high=tot_len-max_len)
         ts_len = np.random.randint(min_len, high=max_len)
         train_data[:ts_len,i,:] = np.expand_dims(X[start_idx:start_idx+ts_len],-1)
-        
+        train_len[i] = ts_len
+    
+    test_data = np.zeros([max_len, num_test_data, 1])    
+    test_len = np.zeros([num_test_data,],dtype=int)
     for i in range(test_data.shape[1]):
         start_idx = np.random.randint(0, high=tot_len-max_len)
         ts_len = np.random.randint(min_len, high=max_len)
         test_data[:ts_len,i,:] = np.expand_dims(X[start_idx:start_idx+ts_len],-1)
+        test_len[i] = ts_len
        
     valid_data = train_data
+    valid_len = train_len
     
     train_labels = np.ones([train_data.shape[1],1])    
     valid_labels = train_labels
     test_labels = np.ones([test_data.shape[1],1])
-    
-    train_len = np.asarray([train_data.shape[0] for _ in range(train_data.shape[1])])
-    valid_len = train_len
-    test_len = np.asarray([test_data.shape[0] for _ in range(test_data.shape[1])])
-    
+        
     train_targets = train_data
     valid_targets = train_targets
     test_targets = test_data
+    
     K_tr = np.ones([train_data.shape[1],train_data.shape[1]])
     K_vs = K_tr
     K_ts = np.ones([test_data.shape[1],test_data.shape[1]])

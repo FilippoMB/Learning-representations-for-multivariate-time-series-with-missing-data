@@ -9,10 +9,12 @@ import argparse, sys
 from utils import classify_with_knn, mse_and_corr, reverse_input
 
 plot_on = 0
+my_seed = 1
+np.random.seed(my_seed)
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='SIN', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
+parser.add_argument("--dataset_id", default='SYNTH', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
 parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
@@ -108,7 +110,9 @@ valid_targets = valid_targets[:,sort_idx,:]
 # ================= GRAPH =================
 tf.reset_default_graph() # needed when working with iPython
 sess = tf.Session()
+tf.set_random_seed(my_seed)
 G = s2s_ts_Model(config)
+tf.set_random_seed(my_seed)
 sess.run(tf.global_variables_initializer())
 
 # trainable parameters count

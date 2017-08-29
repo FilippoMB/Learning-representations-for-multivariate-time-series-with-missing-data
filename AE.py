@@ -11,8 +11,8 @@ plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='SIN', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--code_size", default=5, help="size of the code", type=int)
+parser.add_argument("--dataset_id", default='MSO', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--code_size", default=10, help="size of the code", type=int)
 parser.add_argument("--w_reg", default=0.002, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=20, help="number of samples in each batch", type=int)
@@ -234,13 +234,13 @@ tr_code = sess.run(code, {encoder_inputs: train_data})
 pred, pred_loss, ts_code = sess.run([dec_out, reconstruct_loss, code], {encoder_inputs: test_data})
 print('Test loss: %.3f'%(np.mean((pred-test_data)**2)))
 
-#plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
-#target = test_data[plot_idx1,:]
-#ts_out = pred[plot_idx1,:]
-#plt.plot(target, label='target')
-#plt.plot(ts_out, label='pred')
-#plt.legend(loc='upper right')
-#plt.show(block=False)  
+plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
+target = test_data[plot_idx1,:]
+ts_out = pred[plot_idx1,:]
+plt.plot(target, label='target')
+plt.plot(ts_out, label='pred')
+plt.legend(loc='upper right')
+plt.show(block=False)  
 
 # reverse transformations
 pred = np.reshape(pred, (test_data_orig.shape[1], test_data_orig.shape[0], test_data_orig.shape[2]))

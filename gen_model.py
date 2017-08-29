@@ -192,7 +192,7 @@ class s2s_ts_Model():
             _, d_batch_size, _ = tf.unstack(tf.shape(self.encoder_inputs)) 
             self.EOS_slice = tf.ones([1,d_batch_size,self.input_dim], dtype=tf.float32) * self.EOS
             decoder_train_inputs = tf.concat([self.EOS_slice, self.decoder_outputs], axis=0)
-            decoder_train_lengths = self.encoder_inputs_length + 1 # 1 extra length for the EOS value
+            self.decoder_train_lengths = self.encoder_inputs_length + 1 # 1 extra length for the EOS value
             
             # projection of decoder output
             self.output_layer = layers_core.Dense(self.input_dim, use_bias=False, name="output_proj")
@@ -202,7 +202,7 @@ class s2s_ts_Model():
             # Training Helper
             teach_helper = seq2seq.TrainingHelper(
                     decoder_train_inputs, 
-                    decoder_train_lengths, 
+                    self.decoder_train_lengths, 
                     time_major=True)
             
             # Decoder
@@ -237,7 +237,7 @@ class s2s_ts_Model():
             # callable that takes (time, outputs, state, sample_ids) and emits (finished, next_inputs, next_state)
             def next_inputs_fn(time, outputs, state, sample_ids): 
                 del sample_ids
-                finished = (time >= decoder_train_lengths)
+                finished = (time >= self.decoder_train_lengths)
                 next_inputs = tf.where(finished, self.EOS_slice[0,:,:], outputs)
                 return (finished, next_inputs, state)
             
@@ -257,7 +257,7 @@ class s2s_ts_Model():
             # Dynamic decoding
             inf_outputs, _, _ = seq2seq.dynamic_decode(
                     inf_decoder,
-                    maximum_iterations=tf.reduce_max(decoder_train_lengths),
+                    maximum_iterations=tf.reduce_max(self.decoder_train_lengths),
                     output_time_major=True,
                     swap_memory=True,
                     scope=decoder_scope)
@@ -269,7 +269,7 @@ class s2s_ts_Model():
             
             # Scheduled Sampling Helper
             sched_helper = seq2seq.ScheduledOutputTrainingHelper(decoder_train_inputs,
-                                                                 decoder_train_lengths,
+                                                                 self.decoder_train_lengths,
                                                                  self.sched_prob,
                                                                  time_major=True, 
                                                                  seed=None, 
@@ -296,19 +296,16 @@ class s2s_ts_Model():
         with tf.variable_scope("Loss"): 
             
             # reshape target outputs to match the size of the predicted outputs
-            max_time_step = tf.reduce_max(self.encoder_inputs_length)
-            decoder_train_outputs = tf.slice(self.decoder_outputs, [0,0,0], [max_time_step, -1, -1])
-#            decoder_train_outputs = tf.slice(tf.concat([self.decoder_outputs, self.EOS_slice], axis=0), [0,0,0], [max_time_step+1, -1, -1])
-#            decoder_train_outputs = tf.concat([self.decoder_outputs, self.EOS_slice], axis=0)
+            max_time_step = tf.reduce_max(self.decoder_train_lengths)
+            decoder_train_outputs = tf.slice(tf.concat([self.decoder_outputs, self.EOS_slice], axis=0), [0,0,0], [max_time_step, -1, -1])
             
             # mask padding elements beyond the target sequence length with values 0 
-#            decoder_mask = tf.transpose(tf.sequence_mask(self.encoder_inputs_length+1, max_time_step+1, dtype=tf.float32))
-            decoder_mask = tf.transpose(tf.sequence_mask(self.encoder_inputs_length, max_time_step, dtype=tf.float32))
-#            
-#            # discard the first output (produced when EOS is fed in) and apply the mask
-            self.teach_outputs = tf.expand_dims(decoder_mask,-1)*self.teach_outputs[1:,:,:]
-            self.inf_outputs = tf.expand_dims(decoder_mask,-1)*self.inf_outputs[1:,:,:]
-            self.sched_outputs = tf.expand_dims(decoder_mask,-1)*self.sched_outputs[1:,:,:] 
+            decoder_mask = tf.transpose(tf.sequence_mask(self.decoder_train_lengths, max_time_step, dtype=tf.float32))
+           
+            # discard the first output (produced when EOS is fed in) and apply the mask
+            self.teach_outputs = tf.expand_dims(decoder_mask,-1)*self.teach_outputs
+            self.inf_outputs = tf.expand_dims(decoder_mask,-1)*self.inf_outputs
+            self.sched_outputs = tf.expand_dims(decoder_mask,-1)*self.sched_outputs 
             
             parameters = tf.trainable_variables()
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
@@ -348,7 +345,6 @@ class s2s_ts_Model():
             
             # ============= TOT LOSS =============
             self.tot_loss = self.sched_loss + self.w_align*self.k_loss + self.w_l2*self.reg_loss
-#            self.tot_loss = self.inf_loss
                         
             # Calculate and clip gradients
             gradients = tf.gradients(self.tot_loss, parameters)
