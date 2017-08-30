@@ -138,7 +138,7 @@ class s2s_ts_Model():
                                                               activation_fn=tf.nn.tanh)
                     conc_state.append(LSTMStateTuple(c=c_conc, h=h_conc))
                                                                           
-            elif isinstance(encoder_fw_state[i], tf.Tensor):       
+            elif isinstance(encoder_fw_state[-1], tf.Tensor):       
                 for i in range(self.num_layers):
                     conc_state.append(tf.contrib.layers.fully_connected(tf.concat((encoder_fw_state[i], encoder_bw_state[i]), 1),
                                                                       num_outputs=self.hidden_units,

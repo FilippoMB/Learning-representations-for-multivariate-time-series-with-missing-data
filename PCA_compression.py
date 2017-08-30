@@ -1,14 +1,15 @@
-from TS_datasets import getSynthData, getECGData, getJapDataFull, getCharDataFull, getLibras, getWafer, getSins, getMSO
+from TS_datasets import *
 import numpy as np
 from sklearn.decomposition import PCA
 import argparse, sys
 from utils import interp_data, classify_with_knn, mse_and_corr
+import matplotlib.pyplot as plt
 
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='MSO', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--num_comp", default=5, help="number of PCA components", type=int)
+parser.add_argument("--dataset_id", default='RES', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--num_comp", default=10, help="number of PCA components", type=int)
 args = parser.parse_args()
 print(args)
 
@@ -55,6 +56,11 @@ elif args.dataset_id == 'MSO':
         _, _, _, _, _,
         test_data_orig, test_labels, test_len, _, _) = getMSO() 
     
+elif args.dataset_id == 'RES':        
+    (train_data, train_labels, train_len, _, _,
+        _, _, _, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getReservoir() 
+    
 else:
     sys.exit('Invalid dataset_id')
 
@@ -99,11 +105,11 @@ print('Test MSE: {}\nTest Pearson correlation: {}'.format(tot_mse, tot_corr))
 acc = classify_with_knn(tr_proj, train_labels[:, 0], ts_proj, test_labels[:, 0])
 print('kNN acc: {}'.format(acc))
 
-## plot reconstruction
-#plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
-#target = test_data[plot_idx1,:]
-#pred = pred[plot_idx1,:-1]
-#plt.plot(target, label='target')
-#plt.plot(pred, label='pred')
-#plt.legend(loc='upper right')
-#plt.show(block=False)  
+# plot reconstruction
+plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
+target = test_data[plot_idx1,:]
+pred = pred[plot_idx1,:-1]
+plt.plot(target, label='target')
+plt.plot(pred, label='pred')
+plt.legend(loc='upper right')
+plt.show(block=False)  

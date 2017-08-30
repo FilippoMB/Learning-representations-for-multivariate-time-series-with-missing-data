@@ -5,6 +5,8 @@ from sklearn import preprocessing
 import sys
 from utils import ideal_kernel
 import pandas as pd
+from scipy import sparse
+from scipy.sparse import linalg as slinalg
 
 """
 Data manager for different time series datasets.
@@ -15,11 +17,10 @@ def getSinusoids():
       
     while True:
         
-        t = np.arange(0.0, 10.0, 0.1)
-        f = np.random.rand()
-        f = 1
-        n = np.random.randn(t.shape[0])*0.2
-        sinusoid = np.sin(2*np.pi*t*f) + n
+        t = np.arange(0.0, 100.0, 0.5)
+        a = np.random.rand()
+        b = np.random.rand()
+        sinusoid = np.sin(t*a+b)
         
         yield sinusoid
  
@@ -31,7 +32,7 @@ def getLorentz():
     rho = 28.0
     sigma = 10.0
     beta = 8.0 / 3.0
-    t = np.arange(0.0, 5.0, 0.05)
+    t = np.arange(0.0, 10.0, 0.05)
     
     def f(state, t):
       x, y, z = state  # unpack the state vector
@@ -162,10 +163,11 @@ def getSins(min_len=10, max_len=101):
     return (train_data, train_labels, train_len, train_targets, K_tr,
             valid_data, valid_labels, valid_len, valid_targets, K_vs,
             test_data, test_labels, test_len, test_targets, K_ts)    
-    
-def getMSO(min_len=5, max_len=100):
-    num_train_data = 100
-    num_test_data = 200    
+
+# ========== MSO ==========    
+def getMSO(min_len=20, max_len=100):
+    num_train_data = 500
+    num_test_data = 2000    
     
     tot_len = 50000
     t = np.arange(0,tot_len)
@@ -278,8 +280,8 @@ def getECGData():
     train_data, train_labels = train_data[1:,:,:], train_data[0,:,:]
     test_data, test_labels = test_data[1:,:,:], test_data[0,:,:]
            
-    train_len = [train_data.shape[0] for _ in range(train_data.shape[1])]
-    test_len = [test_data.shape[0] for _ in range(test_data.shape[1])]
+    train_len = np.asarray([train_data.shape[0] for _ in range(train_data.shape[1])])
+    test_len = np.asarray([test_data.shape[0] for _ in range(test_data.shape[1])])
            
     # valid == train   
     valid_data = train_data
@@ -517,3 +519,112 @@ def getLibras():
 def getVarData():
     X = scipy.io.loadmat(file_name='../../data/VAR_data.mat')['x']
     X = preprocessing.scale(X,axis=1) # standardize the data
+
+# ========== RESERVOIR OUTPUTS ==========     
+    
+def getReservoir(n_var=3):
+    num_train_data = 150
+    num_test_data = 250    
+           
+    train_data = np.zeros([100, num_train_data, n_var])
+    train_len = np.ones([num_train_data,],dtype=int)*100   
+    for i in range(train_data.shape[1]):
+        train_data[:,i,:] = _getStates(n_internal_units = n_var)
+    
+    test_data = np.zeros([100, num_test_data, n_var])    
+    test_len = np.ones([num_test_data,],dtype=int)*100  
+    for i in range(test_data.shape[1]):
+        test_data[:,i,:] = _getStates(n_internal_units = n_var)
+       
+    valid_data = train_data
+    valid_len = train_len
+    
+    train_labels = np.ones([train_data.shape[1],1])    
+    valid_labels = train_labels
+    test_labels = np.ones([test_data.shape[1],1])
+        
+    train_targets = train_data
+    valid_targets = train_targets
+    test_targets = test_data
+    
+    K_tr = np.ones([train_data.shape[1],train_data.shape[1]])
+    K_vs = K_tr
+    K_ts = np.ones([test_data.shape[1],test_data.shape[1]])
+    
+    return (train_data, train_labels, train_len, train_targets, K_tr,
+            valid_data, valid_labels, valid_len, valid_targets, K_vs,
+            test_data, test_labels, test_len, test_targets, K_ts)  
+    
+def _getStates(n_internal_units = 3, n_drop = 100, name='Sinusoids'):
+    
+    if name == 'Lorentz':
+        TS_gen = getLorentz()
+    elif name == 'Sinusoids':
+        TS_gen = getSinusoids()
+    elif name == 'LM':
+        TS_gen == getLM()
+    else:
+        sys.exit('Invalid time series generator name')   
+                
+    # training data
+    X = np.asarray([next(TS_gen)]).T   
+    n_data, dim_data = X.shape
+    
+    # hyperparmas
+    dim_output=13
+    input_scaling = 0.6
+    input_shift = 0
+    feedback_scaling = 0.1
+    noise_level = 0
+    
+    # init weights
+    internal_weights = _initialize_internal_weights(n_internal_units)
+    input_weights = 2.0*np.random.rand(n_internal_units, dim_data) - 1.0
+    feedback_weights = 2.0*np.random.rand(n_internal_units, dim_output) - 1.0
+
+    # Initial values
+    previous_state = np.zeros((1, n_internal_units), dtype=float)
+    previous_output = np.zeros((1, dim_output), dtype=float)
+    state_matrix = np.empty((n_data - n_drop, n_internal_units), dtype=float)
+
+
+    for i in range(n_data):
+        # Process inputs
+        previous_state = np.atleast_2d(previous_state)
+        current_input = np.atleast_2d(X[i, :]*input_scaling+input_shift)
+        feedback = feedback_scaling*np.atleast_2d(previous_output)
+
+        # Calculate state. Add noise and apply nonlinearity.
+        state_before_tanh = internal_weights.dot(previous_state.T) + input_weights.dot(current_input.T) + feedback_weights.dot(feedback.T)
+        state_before_tanh += np.random.rand(n_internal_units, 1)*noise_level
+        previous_state = np.tanh(state_before_tanh).T
+
+        # Store everything after the dropout period
+        if (i > n_drop - 1):
+            state_matrix[i - n_drop, :] = previous_state.flatten()
+
+    return state_matrix
+
+def _initialize_internal_weights(n_internal_units, connectivity=0.25, spectral_radius=0.7):
+    # The eigs function might not converge. Attempt until it does.
+    convergence = False
+    while (not convergence):
+        # Generate sparse, uniformly distributed weights.
+        internal_weights = sparse.rand(n_internal_units, n_internal_units, density=connectivity).todense()
+
+        # Ensure that the nonzero values are uniformly distributed in [-0.5, 0.5]
+        internal_weights[np.where(internal_weights > 0)] -= 0.5
+
+        try:
+            # Get the largest eigenvalue
+            w,_ = slinalg.eigs(internal_weights, k=1, which='LM')
+
+            convergence = True
+
+        except:
+            continue
+
+    # Adjust the spectral radius.
+    internal_weights /= np.abs(w)/spectral_radius
+
+    return internal_weights
