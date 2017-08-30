@@ -165,7 +165,7 @@ def getSins(min_len=10, max_len=101):
             test_data, test_labels, test_len, test_targets, K_ts)    
 
 # ========== MSO ==========    
-def getMSO(min_len=20, max_len=100):
+def getMSO(min_len=100, max_len=100, n_var=5):
     num_train_data = 500
     num_test_data = 2000    
     
@@ -174,20 +174,27 @@ def getMSO(min_len=20, max_len=100):
     X = np.sin(0.2*t) + np.sin(0.311*t) + np.sin(0.42*t)  + np.sin(0.51*t) + np.sin(0.63*t) #+ np.sin(0.74*t) + np.sin(0.81*t);
     X = (X - np.mean(X))/np.std(X)
        
-    train_data = np.zeros([max_len, num_train_data, 1])
+    train_data = np.zeros([max_len, num_train_data, n_var])
     train_len = np.zeros([num_train_data,],dtype=int)   
     for i in range(train_data.shape[1]):
         start_idx = np.random.randint(0, high=tot_len-max_len)
-        ts_len = np.random.randint(min_len, high=max_len)
-        train_data[:ts_len,i,:] = np.expand_dims(X[start_idx:start_idx+ts_len],-1)
+        ts_len = np.random.randint(min_len, high=max_len+1)
+        ts_i = X[start_idx:start_idx+ts_len]
+        for j in range(n_var):
+            ts_ij = np.concatenate((ts_i[j*10:],ts_i[:j*10]), axis=0)
+            train_data[:ts_len,i,j] = ts_ij
+         
         train_len[i] = ts_len
     
-    test_data = np.zeros([max_len, num_test_data, 1])    
+    test_data = np.zeros([max_len, num_test_data, n_var])    
     test_len = np.zeros([num_test_data,],dtype=int)
     for i in range(test_data.shape[1]):
         start_idx = np.random.randint(0, high=tot_len-max_len)
-        ts_len = np.random.randint(min_len, high=max_len)
-        test_data[:ts_len,i,:] = np.expand_dims(X[start_idx:start_idx+ts_len],-1)
+        ts_len = np.random.randint(min_len, high=max_len+1)
+        ts_i = X[start_idx:start_idx+ts_len]
+        for j in range(n_var):
+            ts_ij = np.concatenate((ts_i[j*10:],ts_i[:j*10]), axis=0)
+            test_data[:ts_len,i,j] = ts_ij
         test_len[i] = ts_len
        
     valid_data = train_data
@@ -574,7 +581,7 @@ def _getStates(n_internal_units = 3, n_drop = 100, name='Sinusoids'):
     dim_output=13
     input_scaling = 0.6
     input_shift = 0
-    feedback_scaling = 0.1
+    feedback_scaling = 0
     noise_level = 0
     
     # init weights
@@ -598,6 +605,7 @@ def _getStates(n_internal_units = 3, n_drop = 100, name='Sinusoids'):
         state_before_tanh = internal_weights.dot(previous_state.T) + input_weights.dot(current_input.T) + feedback_weights.dot(feedback.T)
         state_before_tanh += np.random.rand(n_internal_units, 1)*noise_level
         previous_state = np.tanh(state_before_tanh).T
+#        previous_state = state_before_tanh.T
 
         # Store everything after the dropout period
         if (i > n_drop - 1):
@@ -605,7 +613,7 @@ def _getStates(n_internal_units = 3, n_drop = 100, name='Sinusoids'):
 
     return state_matrix
 
-def _initialize_internal_weights(n_internal_units, connectivity=0.25, spectral_radius=0.7):
+def _initialize_internal_weights(n_internal_units, connectivity=0.25, spectral_radius=0.2):
     # The eigs function might not converge. Attempt until it does.
     convergence = False
     while (not convergence):
