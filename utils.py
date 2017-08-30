@@ -149,3 +149,59 @@ def reverse_input(data, data_len):
         data_reversed[:len_i,i,:] = data_i[::-1,:]
     
     return data_reversed
+
+
+def check_mso_spectra():
+    """
+    Debug routing to plot Fourier spectra of 6 randomly selected MSO time series
+    with and without interpolation to the maximum time series len.
+    """
+
+    from scipy.fftpack import fft
+    from TS_datasets import getMSO
+    from utils import interp_data
+
+    (train_data, train_labels, train_len, _, _,
+    _, _, _, _, _,
+    _, _, _, _, _) = getMSO(min_len=70, max_len=120)
+
+    train_data_interp = interp_data(train_data, train_len)
+
+    # select time series and related lengths
+
+    import matplotlib.pyplot as plt
+
+    ts_index_list = np.random.randint(0, 99, 6)
+    # multiplot
+    plt.figure(1)
+
+    subplot = 231
+    for ts_index in ts_index_list:
+        ts = train_data[:, ts_index, 0]
+        ts_interp = train_data_interp[:, ts_index, 0]
+        ts_len = train_len[ts_index]
+        ts_interp_len = len(ts_interp)
+
+        # sample spacing
+        t = 1.0 / ts_len
+        t_interp = 1.0 / ts_interp_len
+
+        # FFT
+        y = fft(ts)
+        x = np.linspace(0.0, 1.0 / (2.0 * t), ts_len // 2)
+        y_interp = fft(ts_interp)
+        x_interp = np.linspace(0.0, 1.0 / (2.0 * t_interp), ts_interp_len // 2)
+
+        plt.subplot(subplot)
+
+        plt.plot(x, 2.0 / ts_len * np.abs(y[0:ts_len // 2]), '-b')
+        plt.plot(x_interp, 2.0 / ts_interp_len * np.abs(y_interp[0:ts_interp_len // 2]), '-r')
+        plt.legend(['original', 'interp'])
+        plt.title("Time series ID: " + str(ts_index))
+        plt.xlabel('Frequency')
+        plt.ylabel('FFT')
+        plt.grid()
+
+        subplot += 1
+
+    plt.show()
