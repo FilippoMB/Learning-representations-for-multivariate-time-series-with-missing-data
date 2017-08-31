@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='RES', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--num_comp", default=10, help="number of PCA components", type=int)
+parser.add_argument("--dataset_id", default='ODE', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--num_comp", default=20, help="number of PCA components", type=int)
 args = parser.parse_args()
 print(args)
 
@@ -56,10 +56,10 @@ elif args.dataset_id == 'MSO':
         _, _, _, _, _,
         test_data_orig, test_labels, test_len, _, _) = getMSO() 
     
-elif args.dataset_id == 'RES':        
+elif args.dataset_id == 'ODE':        
     (train_data, train_labels, train_len, _, _,
         _, _, _, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getReservoir() 
+        test_data_orig, test_labels, test_len, _, _) = getODE() 
     
 else:
     sys.exit('Invalid dataset_id')

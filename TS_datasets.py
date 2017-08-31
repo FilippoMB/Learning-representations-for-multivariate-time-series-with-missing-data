@@ -120,30 +120,33 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
 
 
 # ========== SINUSOIDS WITH RANDOM FREQ ==========
-def getSins(min_len=10, max_len=101):
+def getSins(min_len=10, max_len=101, n_var=3):
     num_train_data = 100
     num_test_data = 10000
-    train_data = np.zeros([max_len, num_train_data, 1])
-    test_data = np.zeros([max_len, num_test_data, 1])
+    train_data = np.zeros([max_len, num_train_data, n_var])
+    test_data = np.zeros([max_len, num_test_data, n_var])
     
     train_len = np.zeros([num_train_data,],dtype=int)
     test_len = np.zeros([num_test_data,],dtype=int)
+    pattern=np.random.rand(n_var)
     
     for i in range(train_data.shape[1]):
         m = np.random.rand()
         b = np.random.rand()
         n = np.random.randint(min_len,high=max_len)
-        x_i = np.expand_dims(np.sin(np.arange(0,n)*m+b),-1)
+        for j in range(n_var):
+            x_ij = np.sin(np.arange(0,n)*m*pattern(j)+b)       
+            train_data[:n,i,j] = x_ij
         train_len[i] = n
-        train_data[:n,i,:] = x_i
         
     for i in range(test_data.shape[1]):
         m = np.random.rand()
         b = np.random.rand()
         n = np.random.randint(min_len,high=max_len)
-        x_i = np.expand_dims(np.sin(np.arange(0,n)*m+b),-1)
+        for j in range(n_var):
+            x_ij = np.sin(np.arange(0,n)*m*pattern(j)+b)      
+            test_data[:n,i,j] = x_ij
         test_len[i] = n
-        test_data[:n,i,:] = x_i
            
     valid_data = train_data
     valid_len = train_len
@@ -636,3 +639,59 @@ def _initialize_internal_weights(n_internal_units, connectivity=0.25, spectral_r
     internal_weights /= np.abs(w)/spectral_radius
 
     return internal_weights
+
+# ========== RANDOM ODE ==========    
+    
+def getODE(n_var=20):
+    num_train_data = 150
+    num_test_data = 250    
+    np.random.seed(0)
+    
+    A = np.asarray(sparse.rand(n_var, n_var, density=0.5).todense())
+    A[np.where(A > 0)] -= 0.5
+    w,_ = slinalg.eigs(A, k=1, which='LM')
+    A /= np.abs(w)/0.8
+    t = np.linspace(0, 7, 100) 
+           
+    train_data = np.zeros([100, num_train_data, n_var])
+    train_len = np.ones([num_train_data,],dtype=int)*100   
+    for i in range(train_data.shape[1]):
+        y0 = np.random.rand(n_var)
+        train_data[:,i,:] = odeint(_state_fun, y0, t, args=(A,A))
+    
+    test_data = np.zeros([100, num_test_data, n_var])    
+    test_len = np.ones([num_test_data,],dtype=int)*100  
+    for i in range(test_data.shape[1]):
+        y0 = np.random.rand(n_var)
+        test_data[:,i,:] = odeint(_state_fun, y0, t, args=(A,A))
+        
+    for i in range(n_var):
+        train_data[:,:,i] = preprocessing.scale(train_data[:,:,i],axis=0) # standardize the data
+        test_data[:,:,i] = preprocessing.scale(test_data[:,:,i],axis=0) # standardize the data
+       
+    valid_data = train_data
+    valid_len = train_len
+    
+    train_labels = np.ones([train_data.shape[1],1])    
+    valid_labels = train_labels
+    test_labels = np.ones([test_data.shape[1],1])
+        
+    train_targets = train_data
+    valid_targets = train_targets
+    test_targets = test_data
+    
+    K_tr = np.ones([train_data.shape[1],train_data.shape[1]])
+    K_vs = K_tr
+    K_ts = np.ones([test_data.shape[1],test_data.shape[1]])
+    
+    np.random.seed(None)
+    
+    return (train_data, train_labels, train_len, train_targets, K_tr,
+            valid_data, valid_labels, valid_len, valid_targets, K_vs,
+            test_data, test_labels, test_len, test_targets, K_ts) 
+    
+    
+def _state_fun(y, t, A, A1):
+#    y_d = A.dot(y)
+    y_d = A.dot(np.sin(y))
+    return y_d

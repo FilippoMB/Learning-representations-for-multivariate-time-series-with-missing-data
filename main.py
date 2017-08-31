@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 np.set_printoptions(precision=2)
 import time
 import tensorflow as tf
-from TS_datasets import getSynthData, getECGData, getJapDataFull, getLibras, getCharDataFull, getWafer, getSins, getReservoir
+from TS_datasets import getSynthData, getECGData, getJapDataFull, getLibras, getCharDataFull, getWafer, getSins, getODE
 import argparse, sys
 from utils import classify_with_knn, mse_and_corr, reverse_input
 
@@ -12,10 +12,10 @@ plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='RES', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
-parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
+parser.add_argument("--dataset_id", default='ODE', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
+parser.add_argument("--cell_type", default='GRU', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
 parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
-parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
+parser.add_argument("--hidden_units", default=20, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--decoder_init", default='last', help="init decoder with last state of only last layer (last, zero, all)", type=str)
 parser.add_argument("--sched_prob", default=1.0, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
@@ -88,10 +88,10 @@ elif args.dataset_id == 'MSO':
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, _) = getSins()  
     
-elif args.dataset_id == 'RES':        
+elif args.dataset_id == 'ODE':        
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
-        test_data, test_labels, test_len, test_targets, _) = getReservoir()  
+        test_data, test_labels, test_len, test_targets, _) = getODE()  
     
 else:
     sys.exit('Invalid dataset_id')

@@ -11,11 +11,11 @@ plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='RES', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--code_size", default=10, help="size of the code", type=int)
+parser.add_argument("--dataset_id", default='ODE', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--code_size", default=20, help="size of the code", type=int)
 parser.add_argument("--w_reg", default=0.001, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
-parser.add_argument("--batch_size", default=50, help="number of samples in each batch", type=int)
+parser.add_argument("--batch_size", default=20, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 parser.add_argument("--hidden_size", default=30, help="size of the code", type=int)
@@ -65,10 +65,10 @@ elif args.dataset_id == 'MSO':
         valid_data, _, valid_len, _, _,
         test_data_orig, test_labels, test_len, _, _) = getMSO()  
     
-elif args.dataset_id == 'RES':        
+elif args.dataset_id == 'ODE':        
     (train_data, train_labels, train_len, _, _,
         valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getReservoir() 
+        test_data_orig, test_labels, test_len, _, _) = getODE() 
 else:
     sys.exit('Invalid dataset_id')   
        

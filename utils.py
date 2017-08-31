@@ -50,7 +50,7 @@ def interp_data(X, X_len, restore=False):
             t_new = np.linspace(start=0, stop=X_len[n], num=X_len[n])
             for v in range(V):
                 x_n_v = X[:,n,v]
-                f = interpolate.interp1d(t, x_n_v)
+                f = interpolate.interp1d(t, x_n_v, kind='linear')
                 X_new[:X_len[n],n,v] = f(t_new)
             
     # interpolate all data to length T    
@@ -60,7 +60,7 @@ def interp_data(X, X_len, restore=False):
             t_new = np.linspace(start=0, stop=X_len[n], num=T)
             for v in range(V):
                 x_n_v = X[:X_len[n],n,v]
-                f = interpolate.interp1d(t, x_n_v)
+                f = interpolate.interp1d(t, x_n_v, kind='linear')
                 X_new[:,n,v] = f(t_new)
                 
     return X_new
@@ -158,12 +158,12 @@ def check_mso_spectra():
     """
 
     from scipy.fftpack import fft
-    from TS_datasets import getMSO
+    from TS_datasets import getMSO, getWafer
     from utils import interp_data
 
     (train_data, train_labels, train_len, _, _,
     _, _, _, _, _,
-    _, _, _, _, _) = getMSO(min_len=70, max_len=120)
+    _, _, _, _, _) = getWafer()#getMSO(min_len=70, max_len=120)
 
     train_data_interp = interp_data(train_data, train_len)
 
