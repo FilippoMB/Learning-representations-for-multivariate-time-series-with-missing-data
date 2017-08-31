@@ -52,11 +52,7 @@ def interp_data(X, X_len, restore=False, interp_kind='linear'):
             t_new = np.linspace(start=0, stop=X_len[n], num=X_len[n])
             for v in range(V):
                 x_n_v = X[:,n,v]
-<<<<<<< HEAD
-                f = interpolate.interp1d(t, x_n_v, kind='linear')
-=======
                 f = interpolate.interp1d(t, x_n_v, kind=interp_kind)
->>>>>>> 78861ccd82e1495ba27f1d010fc5353b15886794
                 X_new[:X_len[n],n,v] = f(t_new)
             
     # interpolate all data to length T    
@@ -66,11 +62,7 @@ def interp_data(X, X_len, restore=False, interp_kind='linear'):
             t_new = np.linspace(start=0, stop=X_len[n], num=T)
             for v in range(V):
                 x_n_v = X[:X_len[n],n,v]
-<<<<<<< HEAD
-                f = interpolate.interp1d(t, x_n_v, kind='linear')
-=======
                 f = interpolate.interp1d(t, x_n_v, kind=interp_kind)
->>>>>>> 78861ccd82e1495ba27f1d010fc5353b15886794
                 X_new[:,n,v] = f(t_new)
                 
     return X_new
