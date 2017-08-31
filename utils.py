@@ -37,8 +37,10 @@ def ideal_kernel(labels):
     return K        
     
 
-def interp_data(X, X_len, restore=False):
-    """data are assumed to be time-major """
+def interp_data(X, X_len, restore=False, interp_kind='linear'):
+    """data are assumed to be time-major
+    interp_kind: can be 'linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic'
+    """
     
     [T, N, V] = X.shape
     X_new = np.zeros_like(X)
@@ -50,7 +52,11 @@ def interp_data(X, X_len, restore=False):
             t_new = np.linspace(start=0, stop=X_len[n], num=X_len[n])
             for v in range(V):
                 x_n_v = X[:,n,v]
+<<<<<<< HEAD
                 f = interpolate.interp1d(t, x_n_v, kind='linear')
+=======
+                f = interpolate.interp1d(t, x_n_v, kind=interp_kind)
+>>>>>>> 78861ccd82e1495ba27f1d010fc5353b15886794
                 X_new[:X_len[n],n,v] = f(t_new)
             
     # interpolate all data to length T    
@@ -60,7 +66,11 @@ def interp_data(X, X_len, restore=False):
             t_new = np.linspace(start=0, stop=X_len[n], num=T)
             for v in range(V):
                 x_n_v = X[:X_len[n],n,v]
+<<<<<<< HEAD
                 f = interpolate.interp1d(t, x_n_v, kind='linear')
+=======
+                f = interpolate.interp1d(t, x_n_v, kind=interp_kind)
+>>>>>>> 78861ccd82e1495ba27f1d010fc5353b15886794
                 X_new[:,n,v] = f(t_new)
                 
     return X_new
@@ -163,9 +173,9 @@ def check_mso_spectra():
 
     (train_data, train_labels, train_len, _, _,
     _, _, _, _, _,
-    _, _, _, _, _) = getWafer()#getMSO(min_len=70, max_len=120)
+    _, _, _, _, _) = getMSO(min_len=70, max_len=120)
 
-    train_data_interp = interp_data(train_data, train_len)
+    train_data_interp = interp_data(train_data, train_len, interp_kind='cubic')
 
     # select time series and related lengths
 
