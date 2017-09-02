@@ -1,9 +1,7 @@
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from scipy.stats.stats import pearsonr
-from TS_datasets import getSynthData, getECGData, getJapData
-from utils import dim_reduction_plot
-from sklearn.neighbors import KNeighborsClassifier
+from TS_datasets import *
+from utils import dim_reduction_plot, mse_and_corr, classify_with_knn
 import numpy as np
 import argparse, sys
 
@@ -11,34 +9,64 @@ block_flag = True
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset (SYNTH, ECG, JAP)", type=str)
-parser.add_argument("--graph_name", default="20170815-134125", help="name of the file to be loaded", type=str)
+parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset", type=str)
+parser.add_argument("--graph_name", default="20170902-185742", help="name of the file to be loaded", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--dim_red", dest='dim_red', action='store_true', help="compute PCA and tSNE")
 parser.add_argument("--plot_on", dest='plot_on', action='store_true', help="make plots")
-parser.set_defaults(reverse_input=True)
-parser.set_defaults(dim_red=True)
-parser.set_defaults(plot_on=True)
+parser.set_defaults(reverse_input=False)
+parser.set_defaults(dim_red=False)
+parser.set_defaults(plot_on=False)
 args = parser.parse_args()
 
 # ================= LOAD DATA ===================
 
 if args.dataset_id == 'SYNTH':
-    (train_data, train_labels, train_len, _, _,
-        _, _, _, _, _,
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, K_ts) = getSynthData(name='Lorentz', 
-                                                                      tr_data_samples=2000, 
-                                                                      vs_data_samples=2000, 
-                                                                      ts_data_samples=2000)
+                                                                tr_data_samples=200, 
+                                                                vs_data_samples=200, 
+                                                                ts_data_samples=2000)
 elif args.dataset_id == 'ECG':
-    (train_data, train_labels, train_len, _, _,
-        _, _, _, _, _,
-        test_data, test_labels, test_len, test_targets, K_ts) = getECGData(tr_ratio = 0)
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, K_ts) = getECGData()
        
 elif args.dataset_id == 'JAP':        
-    (train_data, train_labels, train_len, _, _,
-        _, _, _, _, _,
-        test_data, test_labels, test_len, test_targets, K_ts) = getJapData(kernel='TCK',inp=None)
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, K_ts) = getJapDataFull()
+   
+elif args.dataset_id == 'LIB':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, K_ts) = getLibras()
+    
+elif args.dataset_id == 'CHAR':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, K_ts) = getCharDataFull()
+
+elif args.dataset_id == 'WAF':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, K_ts) = getWafer()
+    
+elif args.dataset_id == 'SIN':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, K_ts) = getSins() 
+
+elif args.dataset_id == 'MSO':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, K_ts) = getSins()  
+    
+elif args.dataset_id == 'ODE':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, K_ts) = getODE()  
     
 else:
     sys.exit('Invalid dataset_id')
@@ -50,6 +78,7 @@ sort_idx = np.argsort(test_labels,axis=0)[:,0]
 test_labels = test_labels[sort_idx,:]
 test_data = test_data[:,sort_idx,:]
 test_targets = test_targets[:,sort_idx,:]
+test_len = test_len[sort_idx]
 
 if args.reverse_input:
     train_data = train_data[::-1,:,:]
@@ -81,18 +110,15 @@ code_K = tf.get_collection("code_K")[0]
 # get context vectors from training data
 fdtr = {encoder_inputs: train_data,
         encoder_inputs_length: train_len}
-tr_context2 = sess.run(context_vector, fdtr)
+tr_context = sess.run(context_vector, fdtr)
 
 # get context vectors and predictions from test data
 fdts = {encoder_inputs: test_data,
-        encoder_inputs_length: test_len,
-        decoder_outputs: test_targets}
-ts_pred, ts_loss, ts_context2, ts_code_K = sess.run([inf_outputs, inf_loss, context_vector, code_K], fdts)
+        encoder_inputs_length: test_len}
+ts_pred, ts_context, ts_code_K = sess.run([inf_outputs, context_vector, code_K], fdts)
 sess.close()
 
 # =============== DATA ANALYSIS ===============
-print('Test MSE: %.3f' % (ts_loss))
-
 if args.plot_on:
     
     # plot kernel code
@@ -112,7 +138,7 @@ if args.plot_on:
     plt.plot(pred, label='predicted')
     plt.legend(loc='upper right')
     plt.show(block=block_flag)
-    print('Corr: %.3f' % ( pearsonr(target,pred)[0]) )
+    print('Corr: %.3f' % ( np.corrcoef(target.flatten(), pred.flatten())[0,1] ) )
     
     # plot ts2
     target = test_targets[:,plt_idx1[1],plt_idx2[1]]
@@ -121,7 +147,7 @@ if args.plot_on:
     plt.plot(pred, label='predicted')
     plt.legend(loc='upper right')
     plt.show(block=block_flag)
-    print('Corr: %.3f' % ( pearsonr(target,pred)[0]) )
+    print('Corr: %.3f' % ( np.corrcoef(target.flatten(), pred.flatten())[0,1] ) )
     
     # plot ts3
     target = test_targets[:,plt_idx1[2],plt_idx2[2]]
@@ -130,14 +156,16 @@ if args.plot_on:
     plt.plot(pred, label='predicted')
     plt.legend(loc='upper right')
     plt.show(block=block_flag)
-    print('Corr: %.3f' % ( pearsonr(target,pred)[0]) )
+    print('Corr: %.3f' % ( np.corrcoef(target.flatten(), pred.flatten())[0,1] ) )
 
 # dim reduction plots
 if args.dim_red:
-    dim_reduction_plot(ts_context2, test_labels, block_flag)
+    dim_reduction_plot(ts_context, test_labels, block_flag)
+
+# MSE and corr
+tot_mse, tot_corr = mse_and_corr(test_targets, ts_pred, test_len)
+print('Test MSE: {}\nTest Pearson correlation: {}'.format(tot_mse, tot_corr))
 
 # kNN classification on the codes
-neigh = KNeighborsClassifier(n_neighbors=11)
-neigh.fit(tr_context2, train_labels[:,0])
-accuracy = neigh.score(ts_context2, test_labels[:,0])
-print('kNN accuarcy: {}'.format(accuracy))
+acc = classify_with_knn(tr_context, train_labels[:, 0], ts_context, test_labels[:, 0])
+print('kNN acc: {}'.format(acc))

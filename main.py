@@ -12,10 +12,10 @@ plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='ODE', help="ID of the dataset (SYNTH, ECG, JAP, CHAR)", type=str)
-parser.add_argument("--cell_type", default='GRU', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
+parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset", type=str)
+parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
 parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
-parser.add_argument("--hidden_units", default=20, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
+parser.add_argument("--hidden_units", default=10, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--decoder_init", default='last', help="init decoder with last state of only last layer (last, zero, all)", type=str)
 parser.add_argument("--sched_prob", default=1.0, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
@@ -262,7 +262,8 @@ print('Test MSE: {}\nTest Pearson correlation: {}'.format(tot_mse, tot_corr))
 fdtr = {G.encoder_inputs: train_data,
         G.encoder_inputs_length: train_len}
 tr_context = sess.run(G.context_vector, fdtr)
-classify_with_knn(tr_context, train_labels[:, 0], ts_context, test_labels[:, 0])
+acc = classify_with_knn(tr_context, train_labels[:, 0], ts_context, test_labels[:, 0])
+print('kNN acc: {}'.format(acc))
 
 #train_writer.close()
 sess.close()
