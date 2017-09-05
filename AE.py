@@ -5,16 +5,18 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 from utils import classify_with_knn, interp_data, mse_and_corr, dim_reduction_plot
+import math
 
 dim_red = 0
-plot_on = 1
+plot_on = 0
 interp_on = 0
+tied_weights = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--code_size", default=2, help="size of the code", type=int)
-parser.add_argument("--w_reg", default=0.001, help="weight of the regularization in the loss function", type=float)
+parser.add_argument("--dataset_id", default='ODE2', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--code_size", default=10, help="size of the code", type=int)
+parser.add_argument("--w_reg", default=0.002, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
@@ -108,30 +110,54 @@ sess = tf.Session()
 # placeholders
 encoder_inputs = tf.placeholder(shape=(None,input_length), dtype=tf.float32, name='encoder_inputs')
 
+## encoder
+#with tf.variable_scope("Encoder"):
+#    hidden_1 = tf.contrib.layers.fully_connected(encoder_inputs,
+#                                           num_outputs=args.hidden_size,
+#                                           activation_fn=tf.nn.tanh,
+#                                           )
+#    
+#    code = tf.contrib.layers.fully_connected(hidden_1,
+#                                           num_outputs=args.code_size,
+#                                           activation_fn=tf.nn.tanh,
+#                                           )
+#      
+#    
+## decoder
+#with tf.variable_scope("Decoder"):
+#    hidden_2 = tf.contrib.layers.fully_connected(code,
+#                                           num_outputs=args.hidden_size,
+#                                           activation_fn=tf.nn.tanh,
+#                                           )
+#    
+#    dec_out = tf.contrib.layers.fully_connected(hidden_2,
+#                                           num_outputs=input_length,
+#                                           activation_fn=None,
+#                                           )
+
 # encoder
-with tf.variable_scope("Encoder"):
-    hidden_1 = tf.contrib.layers.fully_connected(encoder_inputs,
-                                           num_outputs=args.hidden_size,
-                                           activation_fn=tf.nn.tanh,
-                                           )
-    
-    code = tf.contrib.layers.fully_connected(hidden_1,
-                                           num_outputs=args.code_size,
-                                           activation_fn=tf.nn.tanh,
-                                           )
-      
-    
+We1 = tf.Variable(tf.random_uniform((input_length, args.hidden_size), -1.0 / math.sqrt(input_length), 1.0 / math.sqrt(input_length)))
+We2 = tf.Variable(tf.random_uniform((args.hidden_size, args.code_size), -1.0 / math.sqrt(args.hidden_size), 1.0 / math.sqrt(args.hidden_size)))
+
+be1 = tf.Variable(tf.zeros([args.hidden_size]))
+be2 = tf.Variable(tf.zeros([args.code_size]))
+
+hidden_1 = tf.nn.tanh(tf.matmul(encoder_inputs, We1) + be1)
+code = tf.nn.tanh(tf.matmul(hidden_1, We2) + be2)
+
 # decoder
-with tf.variable_scope("Decoder"):
-    hidden_2 = tf.contrib.layers.fully_connected(code,
-                                           num_outputs=args.hidden_size,
-                                           activation_fn=tf.nn.tanh,
-                                           )
+if tied_weights:
+    Wd1 = tf.transpose(We2)
+    Wd2 = tf.transpose(We1)
+else:
+    Wd1 = tf.Variable(tf.random_uniform((args.code_size, args.hidden_size), -1.0 / math.sqrt(args.code_size), 1.0 / math.sqrt(args.code_size)))
+    Wd2 = tf.Variable(tf.random_uniform((args.hidden_size, input_length), -1.0 / math.sqrt(args.hidden_size), 1.0 / math.sqrt(args.hidden_size)))
     
-    dec_out = tf.contrib.layers.fully_connected(hidden_2,
-                                           num_outputs=input_length,
-                                           activation_fn=None,
-                                           )
+bd1 = tf.Variable(tf.zeros([args.hidden_size]))  
+bd2 = tf.Variable(tf.zeros([input_length])) 
+
+hidden_2 = tf.nn.tanh(tf.matmul(code, Wd1) + bd1)
+dec_out = tf.matmul(hidden_2, Wd2) + bd2
 
 # ----- LOSS --------
 

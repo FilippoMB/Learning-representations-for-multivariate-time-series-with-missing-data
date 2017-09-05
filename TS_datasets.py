@@ -691,12 +691,13 @@ def getODE(n_var=4):
             test_data, test_labels, test_len, test_targets, K_ts) 
     
 def getODE_mc():
-    np.random.seed(0)
+    np.random.seed(2)
     num_train_data = 100
     num_test_data = 250 
-    n_var = 3
+    n_var = 4
     num_class = 3
     min_time_steps = 30
+    max_time_steps = 91
     
     train_data = np.zeros([min_time_steps*num_class, num_train_data*num_class, n_var]) 
     test_data = np.zeros([min_time_steps*num_class, num_test_data*num_class, n_var]) 
@@ -720,7 +721,7 @@ def getODE_mc():
 #        t = np.linspace(0, 7, time_steps)
         
         for i in range(num_train_data):
-            time_steps = np.random.randint(min_time_steps,high=min_time_steps*(c+1)+1)
+            time_steps = np.random.randint(min_time_steps,high=max_time_steps)
             t = np.linspace(0, 7, time_steps)
             train_len.append(time_steps)
             y0 = np.random.rand(n_var)
@@ -728,7 +729,7 @@ def getODE_mc():
             train_labels.append([c])
 
         for i in range(num_test_data):
-            time_steps = np.random.randint(min_time_steps,high=min_time_steps*(c+1)+1)
+            time_steps = np.random.randint(min_time_steps,high=max_time_steps)
             t = np.linspace(0, 7, time_steps)
             test_len.append(time_steps)
             y0 = np.random.rand(n_var)
