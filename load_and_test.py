@@ -14,9 +14,11 @@ parser.add_argument("--graph_name", default="20170903-215534", help="name of the
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--dim_red", dest='dim_red', action='store_true', help="compute PCA and tSNE")
 parser.add_argument("--plot_on", dest='plot_on', action='store_true', help="make plots")
+parser.add_argument("--plot_code", dest='plot_code', action='store_true', help="plots the code in 2d")
 parser.set_defaults(reverse_input=False)
-parser.set_defaults(dim_red=True)
+parser.set_defaults(dim_red=False)
 parser.set_defaults(plot_on=False)
+parser.set_defaults(plot_code=True)
 args = parser.parse_args()
 
 # ================= LOAD DATA ===================
@@ -159,6 +161,13 @@ if args.plot_on:
     plt.show(block=block_flag)
     print('Corr: %.3f' % ( np.corrcoef(target.flatten(), pred.flatten())[0,1] ) )
     
+    plt.scatter(ts_context[:,0],ts_context[:,1],c=test_labels,marker='.',linewidths = 0,cmap='Paired')
+    plt.gca().axes.get_xaxis().set_ticks([])
+    plt.gca().axes.get_yaxis().set_ticks([])
+    plt.show()
+
+# 2d plot of the codes
+if args.plot_code:
     plt.scatter(ts_context[:,0],ts_context[:,1],c=test_labels,marker='.',linewidths = 0,cmap='Paired')
     plt.gca().axes.get_xaxis().set_ticks([])
     plt.gca().axes.get_yaxis().set_ticks([])

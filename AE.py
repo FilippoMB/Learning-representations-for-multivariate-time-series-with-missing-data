@@ -8,15 +8,15 @@ from utils import classify_with_knn, interp_data, mse_and_corr, dim_reduction_pl
 import math
 
 dim_red = 0
-plot_on = 0
+plot_on = 1
 interp_on = 0
 tied_weights = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='ODE2', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--code_size", default=10, help="size of the code", type=int)
-parser.add_argument("--w_reg", default=0.002, help="weight of the regularization in the loss function", type=float)
+parser.add_argument("--dataset_id", default='LIB', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--code_size", default=2, help="size of the code", type=int)
+parser.add_argument("--w_reg", default=0.001, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
@@ -241,23 +241,23 @@ try:
                 tf.add_to_collection("reconstruct_loss",reconstruct_loss)
                 save_path = saver.save(sess, model_name)        
                                            
-            # plot a random ts from the validation set
-            if plot_on:
-                plot_idx1 = np.random.randint(low=0,high=valid_data.shape[0])
-                target = valid_data[plot_idx1,:]
-                pred = outvs[plot_idx1,:-1]
-                plt.plot(target, label='target')
-                plt.plot(pred, label='pred')
-                plt.legend(loc='upper right')
-                plt.show(block=False)  
+#            # plot a random ts from the validation set
+#            if plot_on:
+#                plot_idx1 = np.random.randint(low=0,high=valid_data.shape[0])
+#                target = valid_data[plot_idx1,:]
+#                pred = outvs[plot_idx1,:-1]
+#                plt.plot(target, label='target')
+#                plt.plot(pred, label='pred')
+#                plt.legend(loc='upper right')
+#                plt.show(block=False)  
                                                     
 except KeyboardInterrupt:
     print('training interrupted')
 
-if plot_on:
-    plt.plot(loss_track, label='loss_track')
-    plt.legend(loc='upper right')
-    plt.show(block=False)
+#if plot_on:
+#    plt.plot(loss_track, label='loss_track')
+#    plt.legend(loc='upper right')
+#    plt.show(block=False)
     
 time_tr_end = time.time()
 print('Tot training time: {}'.format((time_tr_end-time_tr_start)//60) )
@@ -279,7 +279,7 @@ if plot_on:
     plt.plot(target, label='target')
     plt.plot(ts_out, label='pred')
     plt.legend(loc='upper right')
-    plt.show(block=False)  
+    plt.show(block=True)  
     
     plt.scatter(ts_code[:,0],ts_code[:,1],c=test_labels,marker='.',linewidths = 0,cmap='Paired')
     plt.gca().axes.get_xaxis().set_ticks([])

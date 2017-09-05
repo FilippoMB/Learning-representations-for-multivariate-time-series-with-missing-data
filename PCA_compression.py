@@ -11,8 +11,8 @@ interp_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='ODE2', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--num_comp", default=10, help="number of PCA components", type=int)
+parser.add_argument("--dataset_id", default='LIB', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--num_comp", default=2, help="number of PCA components", type=int)
 args = parser.parse_args()
 print(args)
 
@@ -120,7 +120,7 @@ if plot_on:
     plt.plot(ytarget, label='target')
     plt.plot(ypred, label='pred')
     plt.legend(loc='upper right')
-    plt.show(block=False)  
+    plt.show(block=True)  
     
     plt.scatter(ts_proj[:,0],ts_proj[:,1],c=test_labels,marker='o',linewidths = 0,cmap='Paired')
     plt.gca().axes.get_xaxis().set_ticks([])
