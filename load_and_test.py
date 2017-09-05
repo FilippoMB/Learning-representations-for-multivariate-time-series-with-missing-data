@@ -10,12 +10,12 @@ block_flag = True
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset", type=str)
-parser.add_argument("--graph_name", default="20170902-185742", help="name of the file to be loaded", type=str)
+parser.add_argument("--graph_name", default="20170903-215534", help="name of the file to be loaded", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--dim_red", dest='dim_red', action='store_true', help="compute PCA and tSNE")
 parser.add_argument("--plot_on", dest='plot_on', action='store_true', help="make plots")
 parser.set_defaults(reverse_input=False)
-parser.set_defaults(dim_red=False)
+parser.set_defaults(dim_red=True)
 parser.set_defaults(plot_on=False)
 args = parser.parse_args()
 
@@ -93,6 +93,7 @@ if args.plot_on:
     plt.show(block=block_flag)
 
 # ================== RESTORE AND EVAL MODEL ==================
+tf.reset_default_graph()
 sess = tf.Session()
     
 # restore graph
@@ -157,6 +158,11 @@ if args.plot_on:
     plt.legend(loc='upper right')
     plt.show(block=block_flag)
     print('Corr: %.3f' % ( np.corrcoef(target.flatten(), pred.flatten())[0,1] ) )
+    
+    plt.scatter(ts_context[:,0],ts_context[:,1],c=test_labels,marker='.',linewidths = 0,cmap='Paired')
+    plt.gca().axes.get_xaxis().set_ticks([])
+    plt.gca().axes.get_yaxis().set_ticks([])
+    plt.show()
 
 # dim reduction plots
 if args.dim_red:

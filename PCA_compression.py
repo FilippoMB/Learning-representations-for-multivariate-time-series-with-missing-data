@@ -2,14 +2,17 @@ from TS_datasets import *
 import numpy as np
 from sklearn.decomposition import PCA
 import argparse, sys
-from utils import interp_data, classify_with_knn, mse_and_corr
+from utils import interp_data, classify_with_knn, mse_and_corr, dim_reduction_plot
 import matplotlib.pyplot as plt
 
+dim_red = 0
+plot_on = 1
+interp_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='ODE', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--num_comp", default=20, help="number of PCA components", type=int)
+parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--num_comp", default=2, help="number of PCA components", type=int)
 args = parser.parse_args()
 print(args)
 
@@ -60,12 +63,16 @@ elif args.dataset_id == 'ODE':
     (train_data, train_labels, train_len, _, _,
         _, _, _, _, _,
         test_data_orig, test_labels, test_len, _, _) = getODE() 
-    
+
+elif args.dataset_id == 'ODE2':        
+    (train_data, train_labels, train_len, _, _,
+        _, _, _, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getODE_mc()     
 else:
     sys.exit('Invalid dataset_id')
 
 # interpolation
-if np.min(train_len) < np.max(train_len):
+if np.min(train_len) < np.max(train_len) and interp_on:
     print('-- Data Interpolation --')
     train_data = interp_data(train_data, train_len)
     test_data = interp_data(test_data_orig, test_len)
@@ -93,7 +100,7 @@ pred = np.reshape(pred, (test_data_orig.shape[1], test_data_orig.shape[0], test_
 pred = np.transpose(pred,axes=[1,0,2])
 test_data = test_data_orig
 
-if np.min(train_len) < np.max(train_len):
+if np.min(train_len) < np.max(train_len) and interp_on:
     print('-- Reverse Interpolation --')
     pred = interp_data(pred, test_len, restore=True)
 
@@ -106,10 +113,20 @@ acc = classify_with_knn(tr_proj, train_labels[:, 0], ts_proj, test_labels[:, 0])
 print('kNN acc: {}'.format(acc))
 
 # plot reconstruction
-plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
-target = test_data[plot_idx1,:]
-pred = pred[plot_idx1,:-1]
-plt.plot(target, label='target')
-plt.plot(pred, label='pred')
-plt.legend(loc='upper right')
-plt.show(block=False)  
+if plot_on:
+    plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
+    ytarget = test_data[plot_idx1,:]
+    ypred = pred[plot_idx1,:-1]
+    plt.plot(ytarget, label='target')
+    plt.plot(ypred, label='pred')
+    plt.legend(loc='upper right')
+    plt.show(block=False)  
+    
+    plt.scatter(ts_proj[:,0],ts_proj[:,1],c=test_labels,marker='.',linewidths = 0,cmap='Paired')
+    plt.gca().axes.get_xaxis().set_ticks([])
+    plt.gca().axes.get_yaxis().set_ticks([])
+    plt.show()
+    
+# dim reduction plots
+if dim_red:
+    dim_reduction_plot(ts_proj, test_labels[:, 0], 1)

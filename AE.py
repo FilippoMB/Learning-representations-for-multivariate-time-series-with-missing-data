@@ -4,18 +4,19 @@ from TS_datasets import *
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import classify_with_knn, interp_data, mse_and_corr
+from utils import classify_with_knn, interp_data, mse_and_corr, dim_reduction_plot
 
-
-plot_on = 0
+dim_red = 0
+plot_on = 1
+interp_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='ODE', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--code_size", default=20, help="size of the code", type=int)
+parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--code_size", default=2, help="size of the code", type=int)
 parser.add_argument("--w_reg", default=0.001, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
-parser.add_argument("--batch_size", default=20, help="number of samples in each batch", type=int)
+parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 parser.add_argument("--hidden_size", default=30, help="size of the code", type=int)
@@ -69,11 +70,17 @@ elif args.dataset_id == 'ODE':
     (train_data, train_labels, train_len, _, _,
         valid_data, _, valid_len, _, _,
         test_data_orig, test_labels, test_len, _, _) = getODE() 
+    
+elif args.dataset_id == 'ODE2':        
+    (train_data, train_labels, train_len, _, _,
+        valid_data, _, valid_len, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getODE_mc() 
+    
 else:
     sys.exit('Invalid dataset_id')   
        
 # interpolation
-if np.min(train_len) < np.max(train_len):
+if np.min(train_len) < np.max(train_len) and interp_on:
     print('-- Data Interpolation --')
     train_data = interp_data(train_data, train_len)
     valid_data = interp_data(valid_data, valid_len)
@@ -239,20 +246,26 @@ tr_code = sess.run(code, {encoder_inputs: train_data})
 pred, pred_loss, ts_code = sess.run([dec_out, reconstruct_loss, code], {encoder_inputs: test_data})
 print('Test loss: %.3f'%(np.mean((pred-test_data)**2)))
 
-plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
-target = test_data[plot_idx1,:]
-ts_out = pred[plot_idx1,:]
-plt.plot(target, label='target')
-plt.plot(ts_out, label='pred')
-plt.legend(loc='upper right')
-plt.show(block=False)  
+if plot_on:
+    plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
+    target = test_data[plot_idx1,:]
+    ts_out = pred[plot_idx1,:]
+    plt.plot(target, label='target')
+    plt.plot(ts_out, label='pred')
+    plt.legend(loc='upper right')
+    plt.show(block=False)  
+    
+    plt.scatter(ts_code[:,0],ts_code[:,1],c=test_labels,marker='.',linewidths = 0,cmap='Paired')
+    plt.gca().axes.get_xaxis().set_ticks([])
+    plt.gca().axes.get_yaxis().set_ticks([])
+    plt.show()
 
 # reverse transformations
 pred = np.reshape(pred, (test_data_orig.shape[1], test_data_orig.shape[0], test_data_orig.shape[2]))
 pred = np.transpose(pred,axes=[1,0,2])
 test_data = test_data_orig
 
-if np.min(train_len) < np.max(train_len):
+if np.min(train_len) < np.max(train_len) and interp_on:
     print('-- Reverse Interpolation --')
     pred = interp_data(pred, test_len, restore=True)
 
@@ -263,6 +276,10 @@ print('Test MSE: %.3f\nTest Pearson correlation: %.3f'%(test_mse, test_corr))
 # kNN classification on the codes
 acc = classify_with_knn(tr_code, train_labels[:, 0], ts_code, test_labels[:, 0])
 print('kNN acc: {}'.format(acc))
+
+# dim reduction plots
+if dim_red:
+    dim_reduction_plot(ts_code, test_labels, 1)
 
 #train_writer.close()
 sess.close()

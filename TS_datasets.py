@@ -168,8 +168,8 @@ def getSins(min_len=10, max_len=101, n_var=3):
             test_data, test_labels, test_len, test_targets, K_ts)    
 
 # ========== MSO ==========    
-def getMSO(min_len=100, max_len=100, n_var=5):
-    num_train_data = 500
+def getMSO(min_len=20, max_len=100, n_var=1):
+    num_train_data = 100
     num_test_data = 2000    
     
     tot_len = 50000
@@ -642,7 +642,7 @@ def _initialize_internal_weights(n_internal_units, connectivity=0.25, spectral_r
 
 # ========== RANDOM ODE ==========    
     
-def getODE(n_var=5):
+def getODE(n_var=4):
     num_train_data = 150
     num_test_data = 250    
     np.random.seed(0)
@@ -690,8 +690,80 @@ def getODE(n_var=5):
             valid_data, valid_labels, valid_len, valid_targets, K_vs,
             test_data, test_labels, test_len, test_targets, K_ts) 
     
+def getODE_mc():
+    np.random.seed(0)
+    num_train_data = 100
+    num_test_data = 250 
+    n_var = 3
+    num_class = 3
+    min_time_steps = 30
     
+    train_data = np.zeros([min_time_steps*num_class, num_train_data*num_class, n_var]) 
+    test_data = np.zeros([min_time_steps*num_class, num_test_data*num_class, n_var]) 
+    train_len = []
+    test_len = []
+    train_labels = []
+    test_labels = []
+    for c in range(num_class):
+        
+        convergence = False
+        while (not convergence):
+            A = np.asarray(sparse.rand(n_var, n_var, density=0.5).todense())
+            A[np.where(A > 0)] -= 0.5
+            try:
+                w,_ = slinalg.eigs(A, k=1, which='LM')
+                convergence = True                
+            except:
+                continue    
+            A /= np.abs(w)/0.8
+#        time_steps = min_time_steps*(c+1)
+#        t = np.linspace(0, 7, time_steps)
+        
+        for i in range(num_train_data):
+            time_steps = np.random.randint(min_time_steps,high=min_time_steps*(c+1)+1)
+            t = np.linspace(0, 7, time_steps)
+            train_len.append(time_steps)
+            y0 = np.random.rand(n_var)
+            train_data[:time_steps,c*num_train_data+i,:] = odeint(_state_fun, y0, t, args=(A,A))
+            train_labels.append([c])
+
+        for i in range(num_test_data):
+            time_steps = np.random.randint(min_time_steps,high=min_time_steps*(c+1)+1)
+            t = np.linspace(0, 7, time_steps)
+            test_len.append(time_steps)
+            y0 = np.random.rand(n_var)
+            test_data[:time_steps,c*num_test_data+i,:] = odeint(_state_fun, y0, t, args=(A,A))
+            test_labels.append([c])
+
+
+    train_len = np.asarray(train_len)
+    test_len = np.asarray(test_len)
+    train_labels = np.asarray(train_labels)
+    test_labels = np.asarray(test_labels)
+    
+    train_targets = train_data
+    test_targets = test_data
+
+    valid_data = train_data
+    valid_len = train_len
+    valid_labels = train_labels
+    valid_targets = train_targets
+
+    K_tr = ideal_kernel(train_labels)
+    K_vs = ideal_kernel(valid_labels)
+    K_ts = ideal_kernel(test_labels)
+#    K_tr = np.ones([train_data.shape[1],train_data.shape[1]])
+#    K_vs = K_tr
+#    K_ts = np.ones([test_data.shape[1],test_data.shape[1]])
+    
+    np.random.seed(None)
+   
+    return (train_data, train_labels, train_len, train_targets, K_tr,
+            valid_data, valid_labels, valid_len, valid_targets, K_vs,
+            test_data, test_labels, test_len, test_targets, K_ts) 
+            
 def _state_fun(y, t, A, A1):
+#    y_d = A.dot(np.sin(y))
+    y_d = A.dot(np.tanh(y))
 #    y_d = A.dot(y)
-    y_d = A.dot(np.sin(y))
     return y_d
