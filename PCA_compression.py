@@ -11,8 +11,8 @@ interp_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='LIB', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--num_comp", default=2, help="number of PCA components", type=int)
+parser.add_argument("--dataset_id", default='ARAB', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--num_comp", default=10, help="number of PCA components", type=int)
 args = parser.parse_args()
 print(args)
 
@@ -28,11 +28,21 @@ elif args.dataset_id == 'ECG':
     (train_data, train_labels, train_len, _, _,
         _, _, _, _, _,
         test_data_orig, test_labels, test_len, _, _) = getECGData()
+
+elif args.dataset_id == 'ECG2':
+    (train_data, train_labels, train_len, _, _,
+        _, _, _, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getECGDataFull()
         
 elif args.dataset_id == 'LIB':
     (train_data, train_labels, train_len, _, _,
         _, _, _, _, _,
         test_data_orig, test_labels, test_len, _, _) = getLibras()
+
+elif args.dataset_id == 'ARAB':
+    (train_data, train_labels, train_len, _, _,
+        _, _, _, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getArab()
           
 elif args.dataset_id == 'JAP':        
     (train_data, train_labels, train_len, _, _,

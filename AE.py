@@ -14,8 +14,8 @@ tied_weights = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='LIB', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--code_size", default=2, help="size of the code", type=int)
+parser.add_argument("--dataset_id", default='ECG2', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--code_size", default=10, help="size of the code", type=int)
 parser.add_argument("--w_reg", default=0.001, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
@@ -37,11 +37,21 @@ elif args.dataset_id == 'ECG':
     (train_data, train_labels, train_len, _, _,
         valid_data, _, valid_len, _, _,
         test_data_orig, test_labels, test_len, _, _) = getECGData()
+
+elif args.dataset_id == 'ECG2':
+    (train_data, train_labels, train_len, _, _,
+        valid_data, _, valid_len, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getECGDataFull()
        
 elif args.dataset_id == 'JAP':        
     (train_data, train_labels, train_len, _, _,
         valid_data, _, valid_len, _, _,
         test_data_orig, test_labels, test_len, _, _) = getJapDataFull()
+
+elif args.dataset_id == 'ARAB':        
+    (train_data, train_labels, train_len, _, _,
+        valid_data, _, valid_len, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getArab()
 
 elif args.dataset_id == 'CHAR':        
     (train_data, train_labels, train_len, _, _,
@@ -109,31 +119,6 @@ sess = tf.Session()
 
 # placeholders
 encoder_inputs = tf.placeholder(shape=(None,input_length), dtype=tf.float32, name='encoder_inputs')
-
-## encoder
-#with tf.variable_scope("Encoder"):
-#    hidden_1 = tf.contrib.layers.fully_connected(encoder_inputs,
-#                                           num_outputs=args.hidden_size,
-#                                           activation_fn=tf.nn.tanh,
-#                                           )
-#    
-#    code = tf.contrib.layers.fully_connected(hidden_1,
-#                                           num_outputs=args.code_size,
-#                                           activation_fn=tf.nn.tanh,
-#                                           )
-#      
-#    
-## decoder
-#with tf.variable_scope("Decoder"):
-#    hidden_2 = tf.contrib.layers.fully_connected(code,
-#                                           num_outputs=args.hidden_size,
-#                                           activation_fn=tf.nn.tanh,
-#                                           )
-#    
-#    dec_out = tf.contrib.layers.fully_connected(hidden_2,
-#                                           num_outputs=input_length,
-#                                           activation_fn=None,
-#                                           )
 
 # encoder
 We1 = tf.Variable(tf.random_uniform((input_length, args.hidden_size), -1.0 / math.sqrt(input_length), 1.0 / math.sqrt(input_length)))

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 np.set_printoptions(precision=2)
 import time
 import tensorflow as tf
-from TS_datasets import getSynthData, getECGData, getJapDataFull, getLibras, getCharDataFull, getWafer, getSins, getODE, getMSO, getODE_mc
+from TS_datasets import getSynthData, getECGData, getJapDataFull, getLibras, getCharDataFull, getWafer, getSins, getODE, getMSO, getODE_mc, getECGDataFull, getArab
 import argparse, sys
 from utils import classify_with_knn, mse_and_corr, reverse_input
 
@@ -12,8 +12,8 @@ plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='ODE2', help="ID of the dataset", type=str)
-parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
+parser.add_argument("--dataset_id", default='ECG2', help="ID of the dataset", type=str)
+parser.add_argument("--cell_type", default='GRU', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
 parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=10, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--decoder_init", default='last', help="init decoder with last state of only last layer (last, zero, all)", type=str)
@@ -57,11 +57,21 @@ elif args.dataset_id == 'ECG':
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, _) = getECGData()
+
+elif args.dataset_id == 'ECG2':
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, _) = getECGDataFull()
        
 elif args.dataset_id == 'JAP':        
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, _) = getJapDataFull()
+
+elif args.dataset_id == 'ARAB':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, _) = getArab()
    
 elif args.dataset_id == 'LIB':        
     (train_data, train_labels, train_len, train_targets, K_tr,
