@@ -11,7 +11,7 @@ interp_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='ECG2', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--dataset_id", default='ODE2', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--num_comp", default=10, help="number of PCA components", type=int)
 args = parser.parse_args()
 print(args)
@@ -20,9 +20,9 @@ print(args)
 if args.dataset_id == 'SYNTH':
     (train_data, train_labels, train_len, _, _,
         _, _, _, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getSynthData(name='Lorentz', tr_data_samples=2000, 
-                                                 vs_data_samples=1, 
-                                                 ts_data_samples=2000)
+        test_data_orig, test_labels, test_len, _, _) = getSynthData(name='Lorentz', tr_data_samples=100, 
+                                                 vs_data_samples=100, 
+                                                 ts_data_samples=500)
         
 elif args.dataset_id == 'ECG':
     (train_data, train_labels, train_len, _, _,

@@ -10,14 +10,14 @@ import math
 dim_red = 0
 plot_on = 1
 interp_on = 0
-tied_weights = 1
+tied_weights = 0
 lin_dec = 1
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='ODE', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--code_size", default=20, help="size of the code", type=int)
-parser.add_argument("--w_reg", default=0.001, help="weight of the regularization in the loss function", type=float)
+parser.add_argument("--dataset_id", default='ODE2', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--code_size", default=10, help="size of the code", type=int)
+parser.add_argument("--w_reg", default=0.00, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
@@ -30,9 +30,9 @@ print(args)
 if args.dataset_id == 'SYNTH':
     (train_data, train_labels, train_len, _, _,
         valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getSynthData(name='Lorentz', tr_data_samples=2000, 
-                                                                     vs_data_samples=2000, 
-                                                                     ts_data_samples=2000)
+        test_data_orig, test_labels, test_len, _, _) = getSynthData(name='Lorentz', tr_data_samples=100, 
+                                                                     vs_data_samples=100, 
+                                                                     ts_data_samples=500)
     
 elif args.dataset_id == 'ECG':
     (train_data, train_labels, train_len, _, _,

@@ -711,7 +711,7 @@ def _initialize_internal_weights(n_internal_units, connectivity=0.25, spectral_r
 # ========== RANDOM ODE ==========    
     
 def getODE(n_var=5):
-    num_train_data = 150
+    num_train_data = 100
     num_test_data = 250    
     np.random.seed(0)
     
@@ -759,13 +759,13 @@ def getODE(n_var=5):
             test_data, test_labels, test_len, test_targets, K_ts) 
     
 def getODE_mc():
-    np.random.seed(2)
+    np.random.seed(0)
     num_train_data = 100
-    num_test_data = 250 
-    n_var = 4
-    num_class = 3
-    min_time_steps = 30
-    max_time_steps = 91
+    num_test_data = 500 
+    n_var = 5
+    num_class = 1
+    min_time_steps = 200
+    max_time_steps = 201
     
     train_data = np.zeros([min_time_steps*num_class, num_train_data*num_class, n_var]) 
     test_data = np.zeros([min_time_steps*num_class, num_test_data*num_class, n_var]) 
@@ -790,7 +790,7 @@ def getODE_mc():
         
         for i in range(num_train_data):
             time_steps = np.random.randint(min_time_steps,high=max_time_steps)
-            t = np.linspace(0, 7, time_steps)
+            t = np.linspace(0, time_steps/2, time_steps)
             train_len.append(time_steps)
             y0 = np.random.rand(n_var)
             train_data[:time_steps,c*num_train_data+i,:] = odeint(_state_fun, y0, t, args=(A,A))
@@ -798,7 +798,7 @@ def getODE_mc():
 
         for i in range(num_test_data):
             time_steps = np.random.randint(min_time_steps,high=max_time_steps)
-            t = np.linspace(0, 7, time_steps)
+            t = np.linspace(0, time_steps/2, time_steps)
             test_len.append(time_steps)
             y0 = np.random.rand(n_var)
             test_data[:time_steps,c*num_test_data+i,:] = odeint(_state_fun, y0, t, args=(A,A))
