@@ -9,8 +9,8 @@ block_flag = True
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='ECG', help="ID of the dataset", type=str)
-parser.add_argument("--graph_name", default="20170905-223634", help="name of the file to be loaded", type=str)
+parser.add_argument("--dataset_id", default='WAF', help="ID of the dataset", type=str)
+parser.add_argument("--graph_name", default="20170906-054642", help="name of the file to be loaded", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--dim_red", dest='dim_red', action='store_true', help="compute PCA and tSNE")
 parser.add_argument("--plot_on", dest='plot_on', action='store_true', help="make plots")

@@ -13,7 +13,7 @@ plot_on = 0
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='ECG2', help="ID of the dataset", type=str)
-parser.add_argument("--cell_type", default='GRU', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
+parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
 parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=10, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--decoder_init", default='last', help="init decoder with last state of only last layer (last, zero, all)", type=str)
@@ -144,7 +144,7 @@ print('Total parameters: {}'.format(total_parameters))
 # ================= DEBUG =================
 #fd = {G.encoder_inputs: train_data[:,11:20,:], G.encoder_inputs_length: train_len[11:20], G.decoder_outputs: train_targets[:,11:20,:], G.prior_K: K_tr[:,11:20][11:20,:]}
 #fd = {G.encoder_inputs: train_data, G.encoder_inputs_length: train_len, G.decoder_outputs: train_targets, G.prior_K: K_tr}
-#teach_out, inf_out, sched_out,e_states = sess.run([G.teach_outputs, G.inf_outputs, G.sched_outputs,G.encoder_states], fd )  
+#e_states = sess.run(G.lstm_conc, fd )  
 #
 #raise
 

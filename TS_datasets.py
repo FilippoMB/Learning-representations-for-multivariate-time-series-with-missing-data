@@ -710,7 +710,7 @@ def _initialize_internal_weights(n_internal_units, connectivity=0.25, spectral_r
 
 # ========== RANDOM ODE ==========    
     
-def getODE(n_var=4):
+def getODE(n_var=5):
     num_train_data = 150
     num_test_data = 250    
     np.random.seed(0)

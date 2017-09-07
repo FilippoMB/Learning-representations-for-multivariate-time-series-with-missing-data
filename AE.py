@@ -10,12 +10,13 @@ import math
 dim_red = 0
 plot_on = 1
 interp_on = 0
-tied_weights = 0
+tied_weights = 1
+lin_dec = 1
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='ECG2', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--code_size", default=10, help="size of the code", type=int)
+parser.add_argument("--dataset_id", default='ODE', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--code_size", default=20, help="size of the code", type=int)
 parser.add_argument("--w_reg", default=0.001, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
@@ -141,7 +142,11 @@ else:
 bd1 = tf.Variable(tf.zeros([args.hidden_size]))  
 bd2 = tf.Variable(tf.zeros([input_length])) 
 
-hidden_2 = tf.nn.tanh(tf.matmul(code, Wd1) + bd1)
+if lin_dec:
+    hidden_2 = tf.matmul(code, Wd1) + bd1
+else:
+    hidden_2 = tf.nn.tanh(tf.matmul(code, Wd1) + bd1)
+
 dec_out = tf.matmul(hidden_2, Wd2) + bd2
 
 # ----- LOSS --------
@@ -266,7 +271,7 @@ if plot_on:
     plt.legend(loc='upper right')
     plt.show(block=True)  
     
-    plt.scatter(ts_code[:,0],ts_code[:,1],c=test_labels,marker='.',linewidths = 0,cmap='Paired')
+    plt.scatter(ts_code[:,0],ts_code[:,1],c=test_labels, s=80,marker='.',linewidths = 0,cmap='Paired')
     plt.gca().axes.get_xaxis().set_ticks([])
     plt.gca().axes.get_yaxis().set_ticks([])
     plt.show()
