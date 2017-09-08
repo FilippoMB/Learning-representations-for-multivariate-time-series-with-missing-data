@@ -15,7 +15,7 @@ lin_dec = 1
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='ODE2', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--dataset_id", default='AUS', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--code_size", default=10, help="size of the code", type=int)
 parser.add_argument("--w_reg", default=0.00, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
@@ -88,6 +88,11 @@ elif args.dataset_id == 'ODE2':
     (train_data, train_labels, train_len, _, _,
         valid_data, _, valid_len, _, _,
         test_data_orig, test_labels, test_len, _, _) = getODE_mc() 
+
+elif args.dataset_id == 'AUS':        
+    (train_data, train_labels, train_len, _, _,
+        valid_data, _, valid_len, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getAuslan() 
     
 else:
     sys.exit('Invalid dataset_id')   

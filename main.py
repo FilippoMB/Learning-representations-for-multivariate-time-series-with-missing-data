@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 np.set_printoptions(precision=2)
 import time
 import tensorflow as tf
-from TS_datasets import getSynthData, getECGData, getJapDataFull, getLibras, getCharDataFull, getWafer, getSins, getODE, getMSO, getODE_mc, getECGDataFull, getArab
+from TS_datasets import *
 import argparse, sys
 from utils import classify_with_knn, mse_and_corr, reverse_input
 
@@ -108,6 +108,12 @@ elif args.dataset_id == 'ODE2':
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, _) = getODE_mc()      
+    
+elif args.dataset_id == 'AUS':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, _) = getAuslan()  
+    
 else:
     sys.exit('Invalid dataset_id')
 

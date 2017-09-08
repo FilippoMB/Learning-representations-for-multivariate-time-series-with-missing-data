@@ -11,7 +11,7 @@ interp_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='ODE2', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--dataset_id", default='AUS', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--num_comp", default=10, help="number of PCA components", type=int)
 args = parser.parse_args()
 print(args)
@@ -77,7 +77,13 @@ elif args.dataset_id == 'ODE':
 elif args.dataset_id == 'ODE2':        
     (train_data, train_labels, train_len, _, _,
         _, _, _, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getODE_mc()     
+        test_data_orig, test_labels, test_len, _, _) = getODE_mc()
+    
+elif args.dataset_id == 'AUS':        
+    (train_data, train_labels, train_len, _, _,
+        _, _, _, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getAuslan()   
+    
 else:
     sys.exit('Invalid dataset_id')
 

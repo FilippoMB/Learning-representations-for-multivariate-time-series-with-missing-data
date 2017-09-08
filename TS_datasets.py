@@ -592,6 +592,40 @@ def getArab():
         valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
         test_data, test_labels, test_len[:,0], test_targets, K_ts)     
     
+
+# ========== AUSLAN DIGITS ==========
+def getAuslan():
+    aus_data = scipy.io.loadmat('AUSLAN/AUS_full.mat')
+    
+    train_data = aus_data['X']
+    train_labels = aus_data['Y']
+    train_len = aus_data['X_len']
+    test_data = aus_data['Xte']
+    test_labels = aus_data['Yte']
+    test_len = aus_data['Xte_len']
+    
+    # time_major=True
+    train_data = np.transpose(train_data,axes=[1,0,2])
+    test_data = np.transpose(test_data,axes=[1,0,2]) 
+    
+    # valid == train   
+    valid_data = train_data
+    valid_labels = train_labels
+    valid_len = train_len  
+    
+    # target outputs
+    train_targets = train_data
+    valid_targets = valid_data
+    test_targets = test_data 
+    
+    # TODO: add TCK/LPS kernel
+    K_tr = ideal_kernel(train_labels)
+    K_vs = ideal_kernel(valid_labels)
+    K_ts = ideal_kernel(test_labels)
+    
+    return (train_data, train_labels, train_len[:,0], train_targets, K_tr,
+        valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
+        test_data, test_labels, test_len[:,0], test_targets, K_ts)  
     
 # ========== SYNTH VAR DATA ==========    
 def getVarData():
