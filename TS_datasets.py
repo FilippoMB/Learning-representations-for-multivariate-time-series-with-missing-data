@@ -50,7 +50,7 @@ def getLorentz():
 def getLM():
     
     n_iter = 201       # Number of iterations per point
-    r = 3.5
+    r = 3.6
     
     def logisticmap(x, r):
     
@@ -80,7 +80,7 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
     elif name == 'Sinusoids':
         TS_gen = getSinusoids()
     elif name == 'LM':
-        TS_gen == getLM()
+        TS_gen = getLM()
     else:
         sys.exit('Invalid time series generator name')   
                 
@@ -120,22 +120,22 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
 
 
 # ========== SINUSOIDS WITH RANDOM FREQ ==========
-def getSins(min_len=10, max_len=101, n_var=3):
+def getSins(min_len=10, max_len=101, n_var=1):
+    np.random.seed(1)
     num_train_data = 100
-    num_test_data = 10000
+    num_test_data = 1000
     train_data = np.zeros([max_len, num_train_data, n_var])
     test_data = np.zeros([max_len, num_test_data, n_var])
     
     train_len = np.zeros([num_train_data,],dtype=int)
     test_len = np.zeros([num_test_data,],dtype=int)
-    pattern=np.random.rand(n_var)
     
     for i in range(train_data.shape[1]):
         m = np.random.rand()
         b = np.random.rand()
         n = np.random.randint(min_len,high=max_len)
         for j in range(n_var):
-            x_ij = np.sin(np.arange(0,n)*m*pattern(j)+b)       
+            x_ij = np.sin(np.arange(0,n)*m+b)       
             train_data[:n,i,j] = x_ij
         train_len[i] = n
         
@@ -144,7 +144,7 @@ def getSins(min_len=10, max_len=101, n_var=3):
         b = np.random.rand()
         n = np.random.randint(min_len,high=max_len)
         for j in range(n_var):
-            x_ij = np.sin(np.arange(0,n)*m*pattern(j)+b)      
+            x_ij = np.sin(np.arange(0,n)*m+b)      
             test_data[:n,i,j] = x_ij
         test_len[i] = n
            
@@ -162,6 +162,8 @@ def getSins(min_len=10, max_len=101, n_var=3):
     K_tr = np.ones([train_data.shape[1],train_data.shape[1]])
     K_vs = K_tr
     K_ts = np.ones([test_data.shape[1],test_data.shape[1]])
+    
+    np.random.seed(None)
     
     return (train_data, train_labels, train_len, train_targets, K_tr,
             valid_data, valid_labels, valid_len, valid_targets, K_vs,

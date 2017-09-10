@@ -9,15 +9,15 @@ block_flag = True
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='WAF', help="ID of the dataset", type=str)
-parser.add_argument("--graph_name", default="20170906-054642", help="name of the file to be loaded", type=str)
+parser.add_argument("--dataset_id", default='SIN', help="ID of the dataset", type=str)
+parser.add_argument("--graph_name", default="20170910-151750", help="name of the file to be loaded", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--dim_red", dest='dim_red', action='store_true', help="compute PCA and tSNE")
 parser.add_argument("--plot_on", dest='plot_on', action='store_true', help="make plots")
 parser.add_argument("--plot_code", dest='plot_code', action='store_true', help="plots the code in 2d")
 parser.set_defaults(reverse_input=False)
 parser.set_defaults(dim_red=False)
-parser.set_defaults(plot_on=False)
+parser.set_defaults(plot_on=True)
 parser.set_defaults(plot_code=True)
 args = parser.parse_args()
 
@@ -70,17 +70,22 @@ elif args.dataset_id == 'ODE':
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, K_ts) = getODE()  
     
+elif args.dataset_id == 'ECG2':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, K_ts) = getECGDataFull()  
+    
 else:
     sys.exit('Invalid dataset_id')
 
 print('\n**** Processing {}: Tr{}, Ts{} ****\n'.format(args.dataset_id, train_data.shape, test_data.shape))
 
 # sort test data (for visualize the learned K)
-sort_idx = np.argsort(test_labels,axis=0)[:,0]
-test_labels = test_labels[sort_idx,:]
-test_data = test_data[:,sort_idx,:]
-test_targets = test_targets[:,sort_idx,:]
-test_len = test_len[sort_idx]
+#sort_idx = np.argsort(test_labels,axis=0)[:,0]
+#test_labels = test_labels[sort_idx,:]
+#test_data = test_data[:,sort_idx,:]
+#test_targets = test_targets[:,sort_idx,:]
+#test_len = test_len[sort_idx]
 
 if args.reverse_input:
     train_data = train_data[::-1,:,:]
@@ -131,44 +136,21 @@ if args.plot_on:
     plt.gca().axes.get_yaxis().set_ticks([])
     plt.show(block=block_flag)
     
-    plt_idx1 = np.random.randint(low=0, high=test_data.shape[1], size=3)
-    plt_idx2 = np.random.randint(low=0, high=test_data.shape[2], size=3)
-
-    # plot ts1
-    target = test_targets[:,plt_idx1[0],plt_idx2[0]]
-    pred = ts_pred[:-1,plt_idx1[0],plt_idx2[0]]
+#    plt_idx1 = np.random.randint(low=0, high=test_data.shape[1])
+#    plt_idx2 = np.random.randint(low=0, high=test_data.shape[2])
+    plot_idx1 = 37#54#813
+    target = test_data[:,plot_idx1,0]
+    ts_out = ts_pred[:-1,plot_idx1,0]
     plt.plot(target, label='target')
-    plt.plot(pred, label='predicted')
+    plt.plot(ts_out, label='pred')
     plt.legend(loc='upper right')
-    plt.show(block=block_flag)
-    print('Corr: %.3f' % ( np.corrcoef(target.flatten(), pred.flatten())[0,1] ) )
-    
-    # plot ts2
-    target = test_targets[:,plt_idx1[1],plt_idx2[1]]
-    pred = ts_pred[:-1,plt_idx1[1],plt_idx2[1]]
-    plt.plot(target, label='target')
-    plt.plot(pred, label='predicted')
-    plt.legend(loc='upper right')
-    plt.show(block=block_flag)
-    print('Corr: %.3f' % ( np.corrcoef(target.flatten(), pred.flatten())[0,1] ) )
-    
-    # plot ts3
-    target = test_targets[:,plt_idx1[2],plt_idx2[2]]
-    pred = ts_pred[:-1,plt_idx1[2],plt_idx2[2]]
-    plt.plot(target, label='target')
-    plt.plot(pred, label='predicted')
-    plt.legend(loc='upper right')
-    plt.show(block=block_flag)
-    print('Corr: %.3f' % ( np.corrcoef(target.flatten(), pred.flatten())[0,1] ) )
-    
-    plt.scatter(ts_context[:,0],ts_context[:,1],c=test_labels,marker='.',linewidths = 0,cmap='Paired')
-    plt.gca().axes.get_xaxis().set_ticks([])
-    plt.gca().axes.get_yaxis().set_ticks([])
-    plt.show()
+    plt.show(block=True)
+    np.savetxt('TKAE_pred',ts_out)
+    np.savetxt('true_signal',target)
 
 # 2d plot of the codes
 if args.plot_code:
-    plt.scatter(ts_context[:,0],ts_context[:,1],c=test_labels,marker='.',linewidths = 0,cmap='Paired')
+    plt.scatter(ts_context[:,0],ts_context[:,1],s=60,c=test_labels,marker='.',linewidths = 0,cmap='Paired')
     plt.gca().axes.get_xaxis().set_ticks([])
     plt.gca().axes.get_yaxis().set_ticks([])
     plt.show()

@@ -15,7 +15,7 @@ lin_dec = 1
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='AUS', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--dataset_id", default='SIN', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--code_size", default=10, help="size of the code", type=int)
 parser.add_argument("--w_reg", default=0.00, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
@@ -234,17 +234,7 @@ try:
                 tf.add_to_collection("encoder_inputs",encoder_inputs)
                 tf.add_to_collection("dec_out",dec_out)
                 tf.add_to_collection("reconstruct_loss",reconstruct_loss)
-                save_path = saver.save(sess, model_name)        
-                                           
-#            # plot a random ts from the validation set
-#            if plot_on:
-#                plot_idx1 = np.random.randint(low=0,high=valid_data.shape[0])
-#                target = valid_data[plot_idx1,:]
-#                pred = outvs[plot_idx1,:-1]
-#                plt.plot(target, label='target')
-#                plt.plot(pred, label='pred')
-#                plt.legend(loc='upper right')
-#                plt.show(block=False)  
+                save_path = saver.save(sess, model_name)
                                                     
 except KeyboardInterrupt:
     print('training interrupted')
@@ -267,20 +257,6 @@ tr_code = sess.run(code, {encoder_inputs: train_data})
 pred, pred_loss, ts_code = sess.run([dec_out, reconstruct_loss, code], {encoder_inputs: test_data})
 print('Test loss: %.3f'%(np.mean((pred-test_data)**2)))
 
-if plot_on:
-    plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
-    target = test_data[plot_idx1,:]
-    ts_out = pred[plot_idx1,:]
-    plt.plot(target, label='target')
-    plt.plot(ts_out, label='pred')
-    plt.legend(loc='upper right')
-    plt.show(block=True)  
-    
-    plt.scatter(ts_code[:,0],ts_code[:,1],c=test_labels, s=80,marker='.',linewidths = 0,cmap='Paired')
-    plt.gca().axes.get_xaxis().set_ticks([])
-    plt.gca().axes.get_yaxis().set_ticks([])
-    plt.show()
-
 # reverse transformations
 pred = np.reshape(pred, (test_data_orig.shape[1], test_data_orig.shape[0], test_data_orig.shape[2]))
 pred = np.transpose(pred,axes=[1,0,2])
@@ -289,6 +265,22 @@ test_data = test_data_orig
 if np.min(train_len) < np.max(train_len) and interp_on:
     print('-- Reverse Interpolation --')
     pred = interp_data(pred, test_len, restore=True)
+
+if plot_on:
+#    plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
+    plot_idx1 = 37
+    target = test_data[:,plot_idx1,0]
+    ts_out = pred[:,plot_idx1,0]
+    plt.plot(target, label='target')
+    plt.plot(ts_out, label='pred')
+    plt.legend(loc='upper right')
+    plt.show(block=True)  
+    np.savetxt('AE_pred',ts_out)
+    
+    plt.scatter(ts_code[:,0],ts_code[:,1],c=test_labels, s=80,marker='.',linewidths = 0,cmap='Paired')
+    plt.gca().axes.get_xaxis().set_ticks([])
+    plt.gca().axes.get_yaxis().set_ticks([])
+    plt.show()
 
 # MSE and corr
 test_mse, test_corr = mse_and_corr(test_data, pred, test_len)
