@@ -120,9 +120,9 @@ def getSynthData(tr_data_samples, vs_data_samples, ts_data_samples, name='Lorent
 
 
 # ========== SINUSOIDS WITH RANDOM FREQ ==========
-def getSins(min_len=10, max_len=101, n_var=1):
-    np.random.seed(1)
-    num_train_data = 100
+def getSins(min_len=100, max_len=101, n_var=1):
+    np.random.seed(0)
+    num_train_data = 200
     num_test_data = 1000
     train_data = np.zeros([max_len, num_train_data, n_var])
     test_data = np.zeros([max_len, num_test_data, n_var])

@@ -11,7 +11,7 @@ interp_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='SIN', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--dataset_id", default='AUS', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--num_comp", default=10, help="number of PCA components", type=int)
 args = parser.parse_args()
 print(args)
@@ -131,7 +131,7 @@ print('kNN acc: {}'.format(acc))
 # plot reconstruction
 if plot_on:
     plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
-    plot_idx1=37
+    plot_idx1=4
     ytarget = test_data[:,plot_idx1,0]
     ypred = pred[:,plot_idx1,0]
     plt.plot(ytarget, label='target')
@@ -140,7 +140,7 @@ if plot_on:
     plt.show(block=True)  
     np.savetxt('PCA_pred',ypred)
     
-    plt.scatter(ts_proj[:,0],ts_proj[:,1],c=test_labels,marker='o',linewidths = 0,cmap='Paired')
+    plt.scatter(ts_proj[:,0],ts_proj[:,1],s=20,c=test_labels,marker='o',linewidths = 0,cmap='Paired')
     plt.gca().axes.get_xaxis().set_ticks([])
     plt.gca().axes.get_yaxis().set_ticks([])
     plt.show()

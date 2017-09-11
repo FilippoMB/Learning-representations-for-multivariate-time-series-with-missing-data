@@ -7,15 +7,15 @@ import matplotlib.pyplot as plt
 from utils import classify_with_knn, interp_data, mse_and_corr, dim_reduction_plot
 import math
 
-dim_red = 0
+dim_red = 1
 plot_on = 1
 interp_on = 0
-tied_weights = 0
+tied_weights = 1
 lin_dec = 1
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='SIN', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--dataset_id", default='AUS', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--code_size", default=10, help="size of the code", type=int)
 parser.add_argument("--w_reg", default=0.00, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
@@ -268,7 +268,7 @@ if np.min(train_len) < np.max(train_len) and interp_on:
 
 if plot_on:
 #    plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
-    plot_idx1 = 37
+    plot_idx1 = 4
     target = test_data[:,plot_idx1,0]
     ts_out = pred[:,plot_idx1,0]
     plt.plot(target, label='target')

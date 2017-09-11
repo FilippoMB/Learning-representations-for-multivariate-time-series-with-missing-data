@@ -9,15 +9,15 @@ block_flag = True
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='SIN', help="ID of the dataset", type=str)
-parser.add_argument("--graph_name", default="20170910-151750", help="name of the file to be loaded", type=str)
+parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset", type=str)
+parser.add_argument("--graph_name", default="20170903-215534", help="name of the file to be loaded", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--dim_red", dest='dim_red', action='store_true', help="compute PCA and tSNE")
 parser.add_argument("--plot_on", dest='plot_on', action='store_true', help="make plots")
 parser.add_argument("--plot_code", dest='plot_code', action='store_true', help="plots the code in 2d")
 parser.set_defaults(reverse_input=False)
-parser.set_defaults(dim_red=False)
-parser.set_defaults(plot_on=True)
+parser.set_defaults(dim_red=True)
+parser.set_defaults(plot_on=False)
 parser.set_defaults(plot_code=True)
 args = parser.parse_args()
 
@@ -138,7 +138,7 @@ if args.plot_on:
     
 #    plt_idx1 = np.random.randint(low=0, high=test_data.shape[1])
 #    plt_idx2 = np.random.randint(low=0, high=test_data.shape[2])
-    plot_idx1 = 37#54#813
+    plot_idx1 = 4
     target = test_data[:,plot_idx1,0]
     ts_out = ts_pred[:-1,plot_idx1,0]
     plt.plot(target, label='target')
