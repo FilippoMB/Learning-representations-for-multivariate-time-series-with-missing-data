@@ -5,3 +5,7 @@ xxy.py
 AE_results
 uWave/
 xx.py
+true_signal
+AE_pred
+PCA_pred
+TKAE_pred

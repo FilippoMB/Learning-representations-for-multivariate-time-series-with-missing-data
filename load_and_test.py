@@ -5,20 +5,18 @@ from utils import dim_reduction_plot, mse_and_corr, classify_with_knn
 import numpy as np
 import argparse, sys
 
-block_flag = True
-
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='JAP', help="ID of the dataset", type=str)
-parser.add_argument("--graph_name", default="20170903-215534", help="name of the file to be loaded", type=str)
+parser.add_argument("--dataset_id", default='JAPm', help="ID of the dataset", type=str)
+parser.add_argument("--graph_name", default="0", help="name of the file to be loaded", type=str)
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
 parser.add_argument("--dim_red", dest='dim_red', action='store_true', help="compute PCA and tSNE")
 parser.add_argument("--plot_on", dest='plot_on', action='store_true', help="make plots")
 parser.add_argument("--plot_code", dest='plot_code', action='store_true', help="plots the code in 2d")
 parser.set_defaults(reverse_input=False)
-parser.set_defaults(dim_red=True)
-parser.set_defaults(plot_on=False)
-parser.set_defaults(plot_code=True)
+parser.set_defaults(dim_red=False)
+parser.set_defaults(plot_on=True)
+parser.set_defaults(plot_code=False)
 args = parser.parse_args()
 
 # ================= LOAD DATA ===================
@@ -39,6 +37,11 @@ elif args.dataset_id == 'JAP':
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, K_ts) = getJapDataFull()
+
+elif args.dataset_id == 'JAPm':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, K_ts) = getJapDataMiss(kernel='TCK', inp='zero', miss=0.5)
    
 elif args.dataset_id == 'LIB':        
     (train_data, train_labels, train_len, train_targets, K_tr,
@@ -97,7 +100,7 @@ if args.plot_on:
     plt.title('prior K')
     plt.gca().axes.get_xaxis().set_ticks([])
     plt.gca().axes.get_yaxis().set_ticks([])
-    plt.show(block=block_flag)
+    plt.show()
 
 # ================== RESTORE AND EVAL MODEL ==================
 tf.reset_default_graph()
@@ -134,18 +137,18 @@ if args.plot_on:
     plt.title('code K')
     plt.gca().axes.get_xaxis().set_ticks([])
     plt.gca().axes.get_yaxis().set_ticks([])
-    plt.show(block=block_flag)
+    plt.show()
     
-#    plt_idx1 = np.random.randint(low=0, high=test_data.shape[1])
-#    plt_idx2 = np.random.randint(low=0, high=test_data.shape[2])
-    plot_idx1 = 4
-    target = test_data[:,plot_idx1,0]
-    ts_out = ts_pred[:-1,plot_idx1,0]
+    plt_idx1 = np.random.randint(low=0, high=test_data.shape[1])
+    target = test_data[:,plt_idx1,:]
+    pred = ts_pred[:-1,plt_idx1,:]
+    target = np.reshape(target.T, (target.shape[0]*target.shape[1]))
+    pred = np.reshape(pred.T, (pred.shape[0]*pred.shape[1]))  
     plt.plot(target, label='target')
-    plt.plot(ts_out, label='pred')
+    plt.plot(pred, label='pred')
     plt.legend(loc='upper right')
     plt.show(block=True)
-    np.savetxt('TKAE_pred',ts_out)
+    np.savetxt('TKAE_pred',pred)
     np.savetxt('true_signal',target)
 
 # 2d plot of the codes
@@ -161,7 +164,7 @@ if args.dim_red:
 
 # MSE and corr
 tot_mse, tot_corr = mse_and_corr(test_targets, ts_pred, test_len)
-print('Test MSE: {}\nTest Pearson correlation: {}'.format(tot_mse, tot_corr))
+print('Test MSE: %.3f\nTest Pearson correlation: %.3f'%(tot_mse, tot_corr))
 
 # kNN classification on the codes
 acc = classify_with_knn(tr_context, train_labels[:, 0], ts_context, test_labels[:, 0])

@@ -8,22 +8,22 @@ from TS_datasets import *
 import argparse, sys
 from utils import classify_with_knn, mse_and_corr, reverse_input
 
-plot_on = 0
+plot_on = 1
 np.random.seed(1)
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='SIN', help="ID of the dataset", type=str)
+parser.add_argument("--dataset_id", default='JAPm', help="ID of the dataset", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
-parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
-parser.add_argument("--hidden_units", default=5, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
+parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
+parser.add_argument("--hidden_units", default=10, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--decoder_init", default='last', help="init decoder with last state of only last layer (last, zero, all)", type=str)
-parser.add_argument("--sched_prob", default=1.0, help="probability of sampling from teacher signal in scheduled sampling", type=float)
+parser.add_argument("--sched_prob", default=0.9, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
-parser.add_argument("--w_align", default=0.0, help="kernel alignment weight", type=float)
+parser.add_argument("--w_align", default=0.5, help="kernel alignment weight", type=float)
 parser.add_argument("--w_l2", default=0.0, help="l2 norm regularization weight", type=float)
-parser.add_argument("--num_epochs", default=30000, help="number of epochs in training", type=int)
+parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--bidirect", dest='bidirect', action='store_true', help="use an encoder which is bidirectional")
 parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
@@ -68,6 +68,11 @@ elif args.dataset_id == 'JAP':
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, _) = getJapDataFull()
+
+elif args.dataset_id == 'JAPm':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, _) = getJapDataMiss(kernel='TCK', inp='zero', miss=0.5)
 
 elif args.dataset_id == 'ARAB':        
     (train_data, train_labels, train_len, train_targets, K_tr,
@@ -131,6 +136,7 @@ if config['reverse_input']:
 sort_idx = np.argsort(valid_labels,axis=0)[:,0]
 valid_data = valid_data[:,sort_idx,:]
 valid_targets = valid_targets[:,sort_idx,:]
+K_vs = K_vs[sort_idx,:][:,sort_idx]
 
 # ================= GRAPH =================
 tf.reset_default_graph() # needed when working with iPython
@@ -165,7 +171,7 @@ max_batches = train_data.shape[1]//batch_size
 teach_loss_track = []
 inf_loss_track = []
 min_vs_loss = np.infty
-model_name = "/tmp/tkae_models/m_"+str(time.strftime("%Y%m%d-%H%M%S"))+".ckpt"
+model_name = "/tmp/tkae_models/m_0.ckpt" #"/tmp/tkae_models/m_"+str(time.strftime("%Y%m%d-%H%M%S"))+".ckpt"
 #train_writer = tf.summary.FileWriter('/tmp/tensorboard', graph=sess.graph)
 saver = tf.train.Saver()
 
@@ -221,8 +227,8 @@ try:
             inf_outs = sess.run(G.inf_outputs, fdts)            
             test_mse, _ = mse_and_corr(test_targets, inf_outs, test_len)
             
-            print('TS: MSE=%.3f -- VS: tot_loss=%.3f inf_loss=%.3f, teach_loss=%.3f, reg_loss=%.3f -- TR: min_loss=%.3f'
-                  %(test_mse, tot_loss, inf_lossvs, teach_lossvs, reg_loss*args.w_l2, np.min(inf_loss_track)))     
+            print('TS: MSE=%.3f -- VS: tot_loss=%.3f inf_loss=%.3f, teach_loss=%.3f, reg_loss=%.3f -- TR: mean_loss=%.3f'
+                  %(test_mse, tot_loss, inf_lossvs, teach_lossvs, reg_loss*args.w_l2, np.mean(inf_loss_track[-10:])))     
             
             # Save model yielding best results on validation
             if inf_lossvs < min_vs_loss:
@@ -238,8 +244,8 @@ try:
                                            
             # plot a random ts from the validation set
             if plot_on:
-#                plt.matshow(vs_code_K)
-#                plt.show(block=False)
+                plt.matshow(vs_code_K)
+                plt.show()
                 plot_idx1 = np.random.randint(low=0,high=valid_targets.shape[1])
                 plot_idx2 = np.random.randint(low=0,high=valid_targets.shape[2])
                 target = valid_targets[:,plot_idx1,plot_idx2]

@@ -347,13 +347,13 @@ def getECGDataFull():
         test_data, test_labels, test_len[:,0], test_targets, K_ts)
 
 # ========== JAP VOWELS DATA ==========
-def getJapData(kernel='TCK', inp='zero'):
-    jap_data = scipy.io.loadmat('JapaneseVowels/TCK_data.mat')
+def getJapDataMiss(kernel='TCK', inp='zero', miss=0):
+    jap_data = scipy.io.loadmat('JapaneseVowels/TCK_data_'+str(miss)+'.mat')
     
     # ------ train -------
     train_data = jap_data['X']
     train_data = np.transpose(train_data,axes=[1,0,2]) # time_major=True
-    train_len = [train_data.shape[0] for _ in range(train_data.shape[1])]
+    train_len = jap_data['X_len']
     
     if inp=='zero': # substitute NaN with 0
         train_data[np.isnan(train_data)] = 0 
@@ -379,7 +379,7 @@ def getJapData(kernel='TCK', inp='zero'):
     # ----- test -------
     test_data = jap_data['Xte'] 
     test_data = np.transpose(test_data,axes=[1,0,2]) # time_major=True
-    test_len = [test_data.shape[0] for _ in range(test_data.shape[1])]
+    test_len = jap_data['Xte_len']
     
     if inp == 'zero': # substitute NaN with 0
         test_data[np.isnan(test_data)] = 0 
@@ -419,9 +419,9 @@ def getJapData(kernel='TCK', inp='zero'):
         K_vs = ideal_kernel(valid_labels)
         K_ts = ideal_kernel(test_labels)
     
-    return (train_data, train_labels, train_len, train_targets, K_tr,
-        valid_data, valid_labels, valid_len, valid_targets, K_vs,
-        test_data, test_labels, test_len, test_targets, K_ts)
+    return (train_data, train_labels, train_len[:,0], train_targets, K_tr,
+        valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
+        test_data, test_labels, test_len[:,0], test_targets, K_ts)
 
 # ========== JAP VOWELS FULL (vriable lengths) ==========
 def getJapDataFull():
