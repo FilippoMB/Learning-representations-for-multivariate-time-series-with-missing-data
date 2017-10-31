@@ -4,20 +4,21 @@ from TS_datasets import *
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import classify_with_knn, interp_data, mse_and_corr, dim_reduction_plot
+from utils import classify_with_knn, interp_data, mse_and_corr, dim_reduction_plot, anomaly_detect
 import math
 
-dim_red = 1
+dim_red = 0
 plot_on = 1
 interp_on = 0
-tied_weights = 1
-lin_dec = 1
+tied_weights = 0
+lin_dec = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='AUS', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--dataset_id", default='BLOOD', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--code_size", default=10, help="size of the code", type=int)
 parser.add_argument("--w_reg", default=0.00, help="weight of the regularization in the loss function", type=float)
+parser.add_argument("--a_reg", default=0.1, help="weight of the kernel alignment", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
@@ -27,75 +28,43 @@ args = parser.parse_args()
 print(args)
 
 # ================= DATASET =================
+
 if args.dataset_id == 'SYNTH':
-    (train_data, train_labels, train_len, _, _,
-        valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getSynthData(name='Lorentz', tr_data_samples=100, 
-                                                                     vs_data_samples=100, 
-                                                                     ts_data_samples=500)
-    
+    getData = getSynthData    
 elif args.dataset_id == 'ECG':
-    (train_data, train_labels, train_len, _, _,
-        valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getECGData()
-
+    getData = getECGData
 elif args.dataset_id == 'ECG2':
-    (train_data, train_labels, train_len, _, _,
-        valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getECGDataFull()
-       
+    getData = getECGDataFull       
 elif args.dataset_id == 'JAP':        
-    (train_data, train_labels, train_len, _, _,
-        valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getJapDataFull()
-
+    getData = getJapDataFull
+elif args.dataset_id == 'JAPm':        
+    getData = getJapDataMiss
 elif args.dataset_id == 'ARAB':        
-    (train_data, train_labels, train_len, _, _,
-        valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getArab()
-
+    getData = getArab
 elif args.dataset_id == 'CHAR':        
-    (train_data, train_labels, train_len, _, _,
-        valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getCharDataFull()
-
+    getData = getCharDataFull
 elif args.dataset_id == 'LIB':        
-    (train_data, train_labels, train_len, _, _,
-        valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getLibras()    
-    
+    getData = getLibras
 elif args.dataset_id == 'WAF':        
-    (train_data, train_labels, train_len, _, _,
-        valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getWafer()      
-    
+    getData = getWafer
 elif args.dataset_id == 'SIN':        
-    (train_data, train_labels, train_len, _, _,
-        valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getSins()
-    
+    getData = getSins
 elif args.dataset_id == 'MSO':        
-    (train_data, train_labels, train_len, _, _,
-        valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getMSO()  
-    
+    getData = getMSO
 elif args.dataset_id == 'ODE':        
-    (train_data, train_labels, train_len, _, _,
-        valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getODE() 
-    
+    getData = getODE
 elif args.dataset_id == 'ODE2':        
-    (train_data, train_labels, train_len, _, _,
-        valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getODE_mc() 
-
+    getData = getODE_mc
 elif args.dataset_id == 'AUS':        
-    (train_data, train_labels, train_len, _, _,
-        valid_data, _, valid_len, _, _,
-        test_data_orig, test_labels, test_len, _, _) = getAuslan() 
-    
+    getData = getAuslan
+elif args.dataset_id == 'BLOOD':        
+    getData = getBlood
 else:
-    sys.exit('Invalid dataset_id')   
+    sys.exit('Invalid dataset_id')
+    
+(train_data, train_labels, train_len, _, K_tr,
+        valid_data, _, valid_len, _, K_vs,
+        test_data_orig, test_labels, test_len, _, K_ts) = getData()
        
 # interpolation
 if np.min(train_len) < np.max(train_len) and interp_on:
@@ -125,6 +94,7 @@ sess = tf.Session()
 
 # placeholders
 encoder_inputs = tf.placeholder(shape=(None,input_length), dtype=tf.float32, name='encoder_inputs')
+prior_K = tf.placeholder(shape=(None, None), dtype=tf.float32, name='prior_K')
 
 # encoder
 We1 = tf.Variable(tf.random_uniform((input_length, args.hidden_size), -1.0 / math.sqrt(input_length), 1.0 / math.sqrt(input_length)))
@@ -135,6 +105,9 @@ be2 = tf.Variable(tf.zeros([args.code_size]))
 
 hidden_1 = tf.nn.tanh(tf.matmul(encoder_inputs, We1) + be1)
 code = tf.nn.tanh(tf.matmul(hidden_1, We2) + be2)
+
+# kernel on codes
+code_K = tf.tensordot(code, tf.transpose(code), axes=1)
 
 # decoder
 if tied_weights:
@@ -156,6 +129,11 @@ dec_out = tf.matmul(hidden_2, Wd2) + bd2
 
 # ----- LOSS --------
 
+# kernel alignment loss with normalized Frobenius norm
+code_K_norm = code_K/tf.norm(code_K, ord='fro', axis=[-2,-1])
+prior_K_norm = prior_K/tf.norm(prior_K, ord='fro', axis=[-2,-1])
+k_loss = tf.norm(code_K_norm - prior_K_norm, ord='fro', axis=[-2,-1])
+
 # reconstruction loss    
 parameters = tf.trainable_variables()
 optimizer = tf.train.AdamOptimizer(args.learning_rate)
@@ -166,7 +144,7 @@ reg_loss = 0
 for tf_var in tf.trainable_variables():
     reg_loss += tf.reduce_mean(tf.nn.l2_loss(tf_var))
         
-tot_loss = reconstruct_loss + args.w_reg*reg_loss
+tot_loss = reconstruct_loss + args.w_reg*reg_loss + args.a_reg*k_loss
 
 # Calculate and clip gradients
 gradients = tf.gradients(tot_loss, parameters)
@@ -196,14 +174,15 @@ merged_summary = tf.summary.merge_all()
 
 # ================= TRAINING =================
 
-# initialize training stuff
-batch_size = args.batch_size
+# initialize training variables
 time_tr_start = time.time()
+batch_size = args.batch_size
 max_batches = train_data.shape[0]//batch_size
 loss_track = []
+kloss_track = []
 min_vs_loss = np.infty
-model_name = "/tmp/tkae_models/m_"+str(time.strftime("%Y%m%d-%H%M%S"))+".ckpt"
-#train_writer = tf.summary.FileWriter('/tmp/tensorboard', graph=sess.graph)
+model_name = "/tmp/dkae_models/m_0.ckpt"
+train_writer = tf.summary.FileWriter('/tmp/tensorboard', graph=sess.graph)
 saver = tf.train.Saver()
 
 try:
@@ -212,21 +191,26 @@ try:
         # shuffle training data
         idx = np.random.permutation(train_data.shape[0])
         train_data_s = train_data[idx,:] 
+        K_tr_s = K_tr[idx,:][:,idx]
         
         for batch in range(max_batches):
             
-            fdtr = {encoder_inputs: train_data_s[(batch)*batch_size:(batch+1)*batch_size,:]}           
-            _,train_loss = sess.run([update_step, reconstruct_loss], fdtr)    
+            fdtr = {encoder_inputs: train_data_s[(batch)*batch_size:(batch+1)*batch_size,:],
+                    prior_K: K_tr_s[(batch)*batch_size:(batch+1)*batch_size, (batch)*batch_size:(batch+1)*batch_size]
+                    }           
+            _,train_loss, train_kloss = sess.run([update_step, reconstruct_loss, k_loss], fdtr)    
             loss_track.append(train_loss)
+            kloss_track.append(train_kloss)
             
-        # check training progress on the validations set    
+        # check training progress on the validations set (in blood data valid=train) 
         if ep % 100 == 0:            
             print('Ep: {}'.format(ep))
             
-            fdvs = {encoder_inputs: valid_data}
-            outvs, lossvs = sess.run([dec_out, reconstruct_loss], fdvs) #summary, merged_summary
-            #train_writer.add_summary(summary, ep)
-            print('VS loss=%.3f -- TR min_loss=.%3f'%(lossvs, np.min(loss_track)))     
+            fdvs = {encoder_inputs: valid_data,
+                    prior_K: K_vs}
+            outvs, lossvs, klossvs, vs_code_K, summary = sess.run([dec_out, reconstruct_loss, k_loss, code_K, merged_summary], fdvs)
+            train_writer.add_summary(summary, ep)
+            print('VS r_loss=%.3f, k_loss=%.3f -- TR r_loss=%.3f, k_loss=%.3f'%(lossvs, klossvs, np.mean(loss_track[-100:]), np.mean(kloss_track[-100:])))     
             
             # Save model yielding best results on validation
             if lossvs < min_vs_loss:
@@ -239,22 +223,18 @@ try:
 except KeyboardInterrupt:
     print('training interrupted')
 
-#if plot_on:
-#    plt.plot(loss_track, label='loss_track')
-#    plt.legend(loc='upper right')
-#    plt.show(block=False)
-    
+   
 time_tr_end = time.time()
 print('Tot training time: {}'.format((time_tr_end-time_tr_start)//60) )
 
 # ================= TEST =================
 print('************ TEST ************ \n>>restoring from:'+model_name+'<<')
 
+# restore and evaluate graph
 tf.reset_default_graph() # be sure that correct weights are loaded
 saver.restore(sess, model_name)
-
 tr_code = sess.run(code, {encoder_inputs: train_data})
-pred, pred_loss, ts_code = sess.run([dec_out, reconstruct_loss, code], {encoder_inputs: test_data})
+pred, pred_loss, ts_code, ts_code_K = sess.run([dec_out, reconstruct_loss, code, code_K], {encoder_inputs: test_data})
 print('Test loss: %.3f'%(np.mean((pred-test_data)**2)))
 
 # reverse transformations
@@ -267,17 +247,25 @@ if np.min(train_len) < np.max(train_len) and interp_on:
     pred = interp_data(pred, test_len, restore=True)
 
 if plot_on:
-#    plot_idx1 = np.random.randint(low=0,high=test_data.shape[0])
-    plot_idx1 = 4
-    target = test_data[:,plot_idx1,0]
-    ts_out = pred[:,plot_idx1,0]
-    plt.plot(target, label='target')
-    plt.plot(ts_out, label='pred')
-    plt.legend(loc='upper right')
-    plt.show(block=True)  
-    np.savetxt('AE_pred',ts_out)
     
-    plt.scatter(ts_code[:,0],ts_code[:,1],c=test_labels, s=80,marker='.',linewidths = 0,cmap='Paired')
+    # plot the reconstruction of a random time series
+    plot_idx1 = np.random.randint(low=0,high=test_data.shape[1])
+    target = test_data[:,plot_idx1,:]
+    ts_out = pred[:,plot_idx1,:]
+    plt.plot(target.flatten(), label='target')
+    plt.plot(ts_out.flatten(), label='pred')
+    plt.legend(loc='best')
+    plt.title('Prediction of a random MTS variable')
+    plt.show()  
+    np.savetxt('AE_pred',ts_out)
+        
+    plt.matshow(K_ts,cmap='binary_r')
+    plt.title('Prior TCK kernel')
+    plt.gca().axes.get_xaxis().set_ticks([])
+    plt.gca().axes.get_yaxis().set_ticks([])
+    plt.show()
+    plt.matshow(ts_code_K,cmap='binary_r')
+    plt.title('Codes inner products')
     plt.gca().axes.get_xaxis().set_ticks([])
     plt.gca().axes.get_yaxis().set_ticks([])
     plt.show()
@@ -287,12 +275,15 @@ test_mse, test_corr = mse_and_corr(test_data, pred, test_len)
 print('Test MSE: %.3f\nTest Pearson correlation: %.3f'%(test_mse, test_corr))
 
 # kNN classification on the codes
-acc = classify_with_knn(tr_code, train_labels[:, 0], ts_code, test_labels[:, 0])
-print('kNN acc: {}'.format(acc))
+acc, f1 = classify_with_knn(tr_code, train_labels[:, 0], ts_code, test_labels[:, 0], k=1)
+print('kNN -- acc: %.3f, F1: %.3f'%(acc, f1))
+
+# anomaly detection
+anomaly_detect(test_data, pred, test_len, test_labels, threshold=0.3)
 
 # dim reduction plots
 if dim_red:
-    dim_reduction_plot(ts_code, test_labels, 1)
+    dim_reduction_plot(ts_code, test_labels)
 
 #train_writer.close()
 sess.close()

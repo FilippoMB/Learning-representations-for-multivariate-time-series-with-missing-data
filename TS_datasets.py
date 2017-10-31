@@ -458,6 +458,41 @@ def getJapDataFull():
     return (train_data, train_labels, train_len[:,0], train_targets, K_tr,
         valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
         test_data, test_labels, test_len[:,0], test_targets, K_ts)
+    
+# ========== Blood data for OCC ==========
+def getBlood():
+    blood_data = scipy.io.loadmat('Blood/Blood_OCC.mat')
+    train_data = blood_data['X']
+    train_labels = blood_data['Y']
+    train_len = blood_data['X_len']
+    test_data = blood_data['Xte']
+    test_labels = blood_data['Yte']
+    test_len = blood_data['Xte_len']
+    K_tr = blood_data['Ktrtr']
+    K_ts = blood_data['Ktete']
+    
+    # zero imp
+    train_data[np.isnan(train_data)] = 0 
+    test_data[np.isnan(test_data)] = 0 
+    
+    # time_major=True
+    train_data = np.transpose(train_data,axes=[1,0,2])
+    test_data = np.transpose(test_data,axes=[1,0,2]) 
+    
+    # valid == train   
+    valid_data = train_data
+    valid_labels = train_labels
+    valid_len = train_len  
+    K_vs = K_tr
+    
+    # target outputs
+    train_targets = train_data
+    valid_targets = valid_data
+    test_targets = test_data 
+        
+    return (train_data, train_labels, train_len[:,0], train_targets, K_tr,
+        valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
+        test_data, test_labels, test_len[:,0], test_targets, K_ts)
   
 # ========== CHAR FULL (vriable lengths) ==========
 def getCharDataFull():

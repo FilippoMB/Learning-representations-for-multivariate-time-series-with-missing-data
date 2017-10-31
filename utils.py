@@ -68,43 +68,25 @@ def interp_data(X, X_len, restore=False, interp_kind='linear'):
     return X_new
 
 
-def classify_with_knn(train_data, train_labels, val_data, val_labels, min_k=3, max_k=4, step_k=1, plot_results=False):
+def classify_with_knn(train_data, train_labels, test_data, test_labels, k=3, metric='minkowski'):
     """
-    Perform classification with knn by trying multiple k values.
-    This function plots
-    :param train_data:
-    :param train_labels:
-    :param val_data:
-    :param val_labels:
-    :param min_k:
-    :param max_k:
-    :param step_k:
-    :param plot_results: Boolean indicating whether the function should plot the results
-    :param return_results: If True, return a pair of k values and related classification accuracy,
-        otherwise, the function returns None
-    :return:
+    Perform classification with knn.
     """
-
     from sklearn.neighbors import KNeighborsClassifier
+    from sklearn.metrics import f1_score
+    
+    num_classes = len(np.unique(test_labels))
 
-    k_values = []
-    knn_acc = []
-    for k in range(min_k, max_k, step_k):
-        k_values.append(k)
-        neigh = KNeighborsClassifier(n_neighbors=k)
-        neigh.fit(train_data, train_labels)
-        accuracy = neigh.score(val_data, val_labels)
-        knn_acc.append(accuracy)
+    neigh = KNeighborsClassifier(n_neighbors=k, metric=metric)
+    neigh.fit(train_data, train_labels)
+    accuracy = neigh.score(test_data, test_labels)
+    pred_labels = neigh.predict(test_data)
+    if num_classes > 2:
+        F1 = f1_score(test_labels, pred_labels, average='weighted')
+    else:
+        F1 = f1_score(test_labels, pred_labels, average='binary')
 
-    if plot_results:
-        import matplotlib.pyplot as plt
-
-        plt.plot(k_values, knn_acc)
-        plt.xlabel("K")
-        plt.ylabel("Accuracy")
-        plt.show()
-
-    return k_values, knn_acc
+    return accuracy, F1
 
 def mse_and_corr(targets, preds, targets_len):
     """
@@ -123,6 +105,32 @@ def mse_and_corr(targets, preds, targets_len):
     tot_corr = np.mean(corr_list)
     
     return tot_mse, tot_corr
+
+def anomaly_detect(targets, preds, targets_len, target_labels, threshold=0.5):
+    from sklearn.metrics import f1_score, accuracy_score
+    
+    mse_list = []
+    for i in range(targets.shape[1]):
+        len_i = targets_len[i]
+        test_data_i = targets[:len_i,i,:]
+        pred_i = preds[:len_i,i,:]
+        err_i = np.mean((test_data_i-pred_i)**2)
+        mse_list.append(err_i)
+    mean_err = np.mean(mse_list)
+    pred_labels = np.where(mse_list >= mean_err*threshold,1,0)
+        
+    F1 = f1_score(target_labels, pred_labels, average='binary')
+    acc = accuracy_score(target_labels, pred_labels)
+    print('Anomaly detection -- acc: %.3f, F1: %.3f'%(acc,F1))
+    
+    plt.bar(np.arange(100), mse_list[:100], color='r', edgecolor='none',width=1.0)
+    plt.bar(np.arange(100,len(mse_list)), mse_list[100:], color='b', edgecolor='none',width=1.0)
+    plt.show()
+    
+    
+    
+    return acc, F1
+    
 
 def corr2_coeff(A,B):
     """

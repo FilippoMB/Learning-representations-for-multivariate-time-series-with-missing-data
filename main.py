@@ -16,13 +16,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='JAPm', help="ID of the dataset", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
 parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
-parser.add_argument("--hidden_units", default=10, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
+parser.add_argument("--hidden_units", default=15, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--decoder_init", default='last', help="init decoder with last state of only last layer (last, zero, all)", type=str)
 parser.add_argument("--sched_prob", default=0.9, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
-parser.add_argument("--w_align", default=0.5, help="kernel alignment weight", type=float)
-parser.add_argument("--w_l2", default=0.0, help="l2 norm regularization weight", type=float)
+parser.add_argument("--w_align", default=0.1, help="kernel alignment weight", type=float)
+parser.add_argument("--w_l2", default=0.001, help="l2 norm regularization weight", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--bidirect", dest='bidirect', action='store_true', help="use an encoder which is bidirectional")
@@ -72,7 +72,7 @@ elif args.dataset_id == 'JAP':
 elif args.dataset_id == 'JAPm':        
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
-        test_data, test_labels, test_len, test_targets, _) = getJapDataMiss(kernel='TCK', inp='zero', miss=0.5)
+        test_data, test_labels, test_len, test_targets, _) = getJapDataMiss(kernel='TCK', inp='zero', miss=0.9)
 
 elif args.dataset_id == 'ARAB':        
     (train_data, train_labels, train_len, train_targets, K_tr,
@@ -171,7 +171,7 @@ max_batches = train_data.shape[1]//batch_size
 teach_loss_track = []
 inf_loss_track = []
 min_vs_loss = np.infty
-model_name = "/tmp/tkae_models/m_0.ckpt" #"/tmp/tkae_models/m_"+str(time.strftime("%Y%m%d-%H%M%S"))+".ckpt"
+model_name = "/tmp/tkae_models/m_"+str(time.strftime("%Y%m%d-%H%M%S"))+".ckpt" # "/tmp/tkae_models/m_0.ckpt" 
 #train_writer = tf.summary.FileWriter('/tmp/tensorboard', graph=sess.graph)
 saver = tf.train.Saver()
 
@@ -182,14 +182,14 @@ try:
         idx = np.random.permutation(train_data.shape[1])
         train_data_s = train_data[:,idx,:] 
         train_targets_s = train_targets[:,idx,:] 
-        K_tr = K_tr[idx,:][:,idx]
+        K_tr_s = K_tr[idx,:][:,idx]
         
         for batch in range(max_batches):
             
             fdtr = {G.encoder_inputs: train_data_s[:,(batch)*batch_size:(batch+1)*batch_size,:],
                     G.encoder_inputs_length: train_len[(batch)*batch_size:(batch+1)*batch_size],
                     G.decoder_outputs: train_targets_s[:,(batch)*batch_size:(batch+1)*batch_size,:],
-                    G.prior_K: K_tr[(batch)*batch_size:(batch+1)*batch_size, (batch)*batch_size:(batch+1)*batch_size]}  
+                    G.prior_K: K_tr_s[(batch)*batch_size:(batch+1)*batch_size, (batch)*batch_size:(batch+1)*batch_size]}  
             
             _, inf_loss, teach_loss = sess.run([G.update_step, G.inf_loss, G.teach_loss], fdtr)    
                         
@@ -208,8 +208,9 @@ try:
              inf_lossvs, 
              teach_outvs, 
              teach_lossvs, 
-             tot_loss,
-             reg_loss, 
+             tot_lossvs,
+             reg_lossvs, 
+             k_lossvs,
              vs_code_K, 
 #             summary
              ) = (sess.run([G.inf_outputs, 
@@ -218,6 +219,7 @@ try:
                            G.teach_loss,
                            G.tot_loss,
                            G.reg_loss, 
+                           G.k_loss,
                            G.code_K, 
                            ], fdvs)) #G.merged_summary
 #            train_writer.add_summary(summary, ep)
@@ -227,8 +229,8 @@ try:
             inf_outs = sess.run(G.inf_outputs, fdts)            
             test_mse, _ = mse_and_corr(test_targets, inf_outs, test_len)
             
-            print('TS: MSE=%.3f -- VS: tot_loss=%.3f inf_loss=%.3f, teach_loss=%.3f, reg_loss=%.3f -- TR: mean_loss=%.3f'
-                  %(test_mse, tot_loss, inf_lossvs, teach_lossvs, reg_loss*args.w_l2, np.mean(inf_loss_track[-10:])))     
+            print('TS: MSE=%.3f -- VS: tot_loss=%.3f inf_loss=%.3f, k_loss=%.3f, reg_loss=%.3f -- TR: mean_loss=%.3f'
+                  %(test_mse, tot_lossvs, inf_lossvs, k_lossvs*args.w_align, reg_lossvs*args.w_l2, np.mean(inf_loss_track[-10:])))     
             
             # Save model yielding best results on validation
             if inf_lossvs < min_vs_loss:
