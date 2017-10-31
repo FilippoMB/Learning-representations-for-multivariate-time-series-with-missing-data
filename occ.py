@@ -1,4 +1,5 @@
 import numpy as np
+import time
 from sklearn import svm
 from sklearn.metrics import accuracy_score, classification_report, roc_auc_score
 
@@ -34,7 +35,7 @@ def get_data():
     return x_r, y_r
 
 
-def get_problem_instance(x, y, seed, nominal_percentage_training=0.5):
+def get_problem_instance(x, y, nominal_percentage_training=0.5):
 
     index_ones = np.where(y == 1)[0]
     index_mones = np.where(y == -1)[0]
@@ -47,7 +48,6 @@ def get_problem_instance(x, y, seed, nominal_percentage_training=0.5):
     tr_size = round(len(index_ones) * nominal_percentage_training)
 
     # shuffle nominal data (so we randomize data in the training set)
-    np.random.seed(seed)
     c = np.c_[x_nominal.reshape(len(x_nominal), -1), y_nominal.reshape(len(y_nominal), -1)]
     x2_nominal = c[:, :x_nominal.size // len(x_nominal)].reshape(x_nominal.shape)
     y2_nominal = c[:, x_nominal.size // len(x_nominal):].reshape(y_nominal.shape)
@@ -68,25 +68,30 @@ def get_problem_instance(x, y, seed, nominal_percentage_training=0.5):
     return x_tr, y_tr, x2_te, y2_te
 
 
-seed = np.random.randint(low=1, high=10000)
+if __name__ == "__main__":
 
-x, y = get_data()
-x_tr, y_tr, x_te, y_te = get_problem_instance(x, y, seed)
+    # not reproducible
+    np.random.seed(int(time.time()))
 
-# fit the model (with fixed hyper-parameters)
-clf = svm.OneClassSVM(nu=0.05, kernel="rbf", gamma=0.01)
-clf.fit(x_tr)
+    x, y = get_data()
+    x_tr, y_tr, x_te, y_te = get_problem_instance(x, y)
 
-# prediction
-y_tr_pred = clf.predict(x_tr)
-y_te_pred = clf.predict(x_te)
+    start_time = time.time()
+    # fit the model (with fixed hyper-parameters)
+    clf = svm.OneClassSVM(nu=0.05, kernel="rbf", gamma=0.01)
+    clf.fit(x_tr)
 
-# evaluation
-acc_tr = accuracy_score(y_tr, y_tr_pred)
-acc_te = accuracy_score(y_te, y_te_pred)
+    # prediction
+    y_tr_pred = clf.predict(x_tr)
+    y_te_pred = clf.predict(x_te)
 
+    print("Running time: %.6f sec" % (time.time() - start_time))
 
-print("Accuracy on training set: " + str(acc_tr))
-print("Accuracy on test set: " + str(acc_te))
-print("AUC: " + str(roc_auc_score(y_te, y_te_pred)))
-print(classification_report(y_te, y_te_pred, target_names=['class -1', 'class 1']))
+    # performance evaluation
+    acc_tr = accuracy_score(y_tr, y_tr_pred)
+    acc_te = accuracy_score(y_te, y_te_pred)
+
+    print("Accuracy on training set: " + str(acc_tr))
+    print("Accuracy on test set: " + str(acc_te))
+    print("AUC: " + str(roc_auc_score(y_te, y_te_pred)))
+    print(classification_report(y_te, y_te_pred, target_names=['class -1', 'class 1']))
