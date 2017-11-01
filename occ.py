@@ -47,17 +47,14 @@ def get_problem_instance(x, y, nominal_percentage_training=0.5):
 
     tr_size = round(len(index_ones) * nominal_percentage_training)
 
-    # shuffle nominal data (so we randomize data in the training set)
-    c = np.c_[x_nominal.reshape(len(x_nominal), -1), y_nominal.reshape(len(y_nominal), -1)]
-    x2_nominal = c[:, :x_nominal.size // len(x_nominal)].reshape(x_nominal.shape)
-    y2_nominal = c[:, x_nominal.size // len(x_nominal):].reshape(y_nominal.shape)
-    np.random.shuffle(c)
+    # shuffle nominal data (labels are all 1s)
+    np.random.shuffle(x_nominal)
 
     # split training and test
-    x_tr = x2_nominal[:tr_size, :]
-    y_tr = y2_nominal[:tr_size]
-    x_te = np.vstack((x2_nominal[tr_size:, :], x_nonnominal))
-    y_te = np.vstack((y2_nominal[tr_size:], y_nonnominal))
+    x_tr = x_nominal[:tr_size, :]
+    y_tr = y_nominal[:tr_size]
+    x_te = np.vstack((x_nominal[tr_size:, :], x_nonnominal))
+    y_te = np.vstack((y_nominal[tr_size:], y_nonnominal))
 
     # shuffle test set data
     c = np.c_[x_te.reshape(len(x_te), -1), y_te.reshape(len(y_te), -1)]
