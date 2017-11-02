@@ -126,9 +126,7 @@ def anomaly_detect(targets, preds, targets_len, target_labels, threshold=0.5):
     plt.bar(np.arange(100), mse_list[:100], color='r', edgecolor='none',width=1.0)
     plt.bar(np.arange(100,len(mse_list)), mse_list[100:], color='b', edgecolor='none',width=1.0)
     plt.show()
-    
-    
-    
+        
     return acc, F1
     
 

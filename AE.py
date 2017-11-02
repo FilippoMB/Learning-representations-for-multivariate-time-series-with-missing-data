@@ -11,7 +11,7 @@ dim_red = 0
 plot_on = 1
 interp_on = 0
 tied_weights = 0
-lin_dec = 0
+lin_dec = 1
 
 # parse input data
 parser = argparse.ArgumentParser()
@@ -275,7 +275,7 @@ test_mse, test_corr = mse_and_corr(test_data, pred, test_len)
 print('Test MSE: %.3f\nTest Pearson correlation: %.3f'%(test_mse, test_corr))
 
 # kNN classification on the codes
-acc, f1 = classify_with_knn(tr_code, train_labels[:, 0], ts_code, test_labels[:, 0], k=1)
+acc, f1 = classify_with_knn(tr_code, train_labels[:, 0], ts_code, test_labels[:, 0], k=3)
 print('kNN -- acc: %.3f, F1: %.3f'%(acc, f1))
 
 # anomaly detection

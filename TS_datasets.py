@@ -459,9 +459,9 @@ def getJapDataFull():
         valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
         test_data, test_labels, test_len[:,0], test_targets, K_ts)
     
-# ========== Blood data for OCC ==========
+# ========== Blood data (OCC) ==========
 def getBlood():
-    blood_data = scipy.io.loadmat('Blood/Blood_OCC.mat')
+    blood_data = scipy.io.loadmat('Blood/BLOOD_full.mat')
     train_data = blood_data['X']
     train_labels = blood_data['Y']
     train_len = blood_data['X_len']
@@ -471,7 +471,7 @@ def getBlood():
     K_tr = blood_data['Ktrtr']
     K_ts = blood_data['Ktete']
     
-    # zero imp
+    # zero imputation
     train_data[np.isnan(train_data)] = 0 
     test_data[np.isnan(test_data)] = 0 
     

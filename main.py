@@ -6,17 +6,18 @@ import time
 import tensorflow as tf
 from TS_datasets import *
 import argparse, sys
-from utils import classify_with_knn, mse_and_corr, reverse_input
+from utils import classify_with_knn, mse_and_corr, reverse_input, anomaly_detect
 
-plot_on = 1
-np.random.seed(1)
+plot_on = 0
+_seed = 1
+np.random.seed(_seed)
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='JAPm', help="ID of the dataset", type=str)
+parser.add_argument("--dataset_id", default='BLOOD', help="ID of the dataset", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
 parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
-parser.add_argument("--hidden_units", default=15, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
+parser.add_argument("--hidden_units", default=10, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--decoder_init", default='last', help="init decoder with last state of only last layer (last, zero, all)", type=str)
 parser.add_argument("--sched_prob", default=0.9, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
@@ -117,7 +118,12 @@ elif args.dataset_id == 'ODE2':
 elif args.dataset_id == 'AUS':        
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
-        test_data, test_labels, test_len, test_targets, _) = getAuslan()  
+        test_data, test_labels, test_len, test_targets, _) = getAuslan()
+    
+elif args.dataset_id == 'BLOOD':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, _) = getBlood()  
     
 else:
     sys.exit('Invalid dataset_id')
@@ -141,7 +147,7 @@ K_vs = K_vs[sort_idx,:][:,sort_idx]
 # ================= GRAPH =================
 tf.reset_default_graph() # needed when working with iPython
 sess = tf.Session()
-tf.set_random_seed(1)
+tf.set_random_seed(_seed)
 G = s2s_ts_Model(config)
 sess.run(tf.global_variables_initializer())
 
@@ -249,13 +255,12 @@ try:
                 plt.matshow(vs_code_K)
                 plt.show()
                 plot_idx1 = np.random.randint(low=0,high=valid_targets.shape[1])
-                plot_idx2 = np.random.randint(low=0,high=valid_targets.shape[2])
-                target = valid_targets[:,plot_idx1,plot_idx2]
-                inf_pred = inf_outvs[:,plot_idx1,plot_idx2]
-                teach_pred = teach_outvs[:,plot_idx1,plot_idx2]
-                plt.plot(target, linewidth=1.5, label='target')
-                plt.plot(teach_pred, '--', label='teach')
-                plt.plot(inf_pred, linewidth=1.5, label='inf')
+                target = valid_targets[:,plot_idx1,:]
+                inf_pred = inf_outvs[:,plot_idx1,:]
+                teach_pred = teach_outvs[:,plot_idx1,:]
+                plt.plot(target.flatten(), linewidth=1.5, label='target')
+                plt.plot(teach_pred.flatten(), '--', label='teach')
+                plt.plot(inf_pred.flatten(), linewidth=1.5, label='inf')
                 
                 plt.legend(loc='best')
                 plt.show(block=False)  
@@ -288,12 +293,15 @@ inf_outs, ts_context = sess.run([G.inf_outputs, G.context_vector], fdts)
 tot_mse, tot_corr = mse_and_corr(test_targets, inf_outs, test_len)
 print('Test MSE: {}\nTest Pearson correlation: {}'.format(tot_mse, tot_corr))
 
+# anomaly detect
+anomaly_detect(test_targets, inf_outs, test_len, test_labels, threshold=0.3)
+
 # kNN classification on the codes
 fdtr = {G.encoder_inputs: train_data,
         G.encoder_inputs_length: train_len}
 tr_context = sess.run(G.context_vector, fdtr)
-acc = classify_with_knn(tr_context, train_labels[:, 0], ts_context, test_labels[:, 0])
-print('kNN acc: {}'.format(acc))
+acc, f1 = classify_with_knn(tr_context, train_labels[:, 0], ts_context, test_labels[:, 0], k=3)
+print('kNN -- acc: %.3f, F1: %.3f'%(acc, f1))
 
 #train_writer.close()
 sess.close()
