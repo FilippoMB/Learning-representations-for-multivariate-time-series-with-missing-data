@@ -460,8 +460,8 @@ def getJapDataFull():
         test_data, test_labels, test_len[:,0], test_targets, K_ts)
     
 # ========== Blood data (OCC) ==========
-def getBlood():
-    blood_data = scipy.io.loadmat('Blood/BLOOD_full.mat')
+def getBlood(inp='last'):
+    blood_data = scipy.io.loadmat('Blood/Blood_LPS.mat')
     train_data = blood_data['X']
     train_labels = blood_data['Y']
     train_len = blood_data['X_len']
@@ -470,15 +470,35 @@ def getBlood():
     test_len = blood_data['Xte_len']
     K_tr = blood_data['Ktrtr']
     K_ts = blood_data['Ktete']
-    
-    # zero imputation
-    train_data[np.isnan(train_data)] = 0 
-    test_data[np.isnan(test_data)] = 0 
+    K_tr = (K_tr-np.amin(K_tr))/(np.amax(K_tr)-np.amin(K_tr))
+    K_ts = (K_ts-np.amin(K_ts))/(np.amax(K_ts)-np.amin(K_ts))
     
     # time_major=True
     train_data = np.transpose(train_data,axes=[1,0,2])
     test_data = np.transpose(test_data,axes=[1,0,2]) 
     
+    if inp == 'zero':
+        # zero imputation
+        train_data[np.isnan(train_data)] = 0 
+        test_data[np.isnan(test_data)] = 0 
+    
+    elif inp == 'last': # replace NaN with the last seen value
+       train_data0 = train_data[0,:,:]
+       train_data0[np.isnan(train_data0)] = 0
+       train_data[0,:,:] = train_data0
+       for i in range(train_data.shape[1]):
+           train_data_i = pd.DataFrame(train_data[:,i,:])
+           train_data_i.fillna(method='ffill',inplace=True)  
+           train_data[:,i,:] = train_data_i.values    
+          
+       test_data0 = test_data[0,:,:]
+       test_data0[np.isnan(test_data0)] = 0
+       test_data[0,:,:] = test_data0
+       for i in range(test_data.shape[1]):
+           test_data_i = pd.DataFrame(test_data[:,i,:])
+           test_data_i.fillna(method='ffill',inplace=True)
+           test_data[:,i,:] = test_data_i.values
+        
     # valid == train   
     valid_data = train_data
     valid_labels = train_labels

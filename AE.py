@@ -17,8 +17,8 @@ lin_dec = 1
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='BLOOD', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--code_size", default=10, help="size of the code", type=int)
-parser.add_argument("--w_reg", default=0.00, help="weight of the regularization in the loss function", type=float)
-parser.add_argument("--a_reg", default=0.1, help="weight of the kernel alignment", type=float)
+parser.add_argument("--w_reg", default=0.0, help="weight of the regularization in the loss function", type=float)
+parser.add_argument("--a_reg", default=0.2, help="weight of the kernel alignment", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
@@ -130,8 +130,8 @@ dec_out = tf.matmul(hidden_2, Wd2) + bd2
 # ----- LOSS --------
 
 # kernel alignment loss with normalized Frobenius norm
-code_K_norm = code_K/tf.norm(code_K, ord='fro', axis=[-2,-1])
-prior_K_norm = prior_K/tf.norm(prior_K, ord='fro', axis=[-2,-1])
+code_K_norm = code_K/tf.norm(code_K, ord='fro', axis=[-2,-1]) #tf.reduce_max(code_K)
+prior_K_norm = prior_K/tf.norm(prior_K, ord='fro', axis=[-2,-1]) #tf.reduce_max(prior_K)
 k_loss = tf.norm(code_K_norm - prior_K_norm, ord='fro', axis=[-2,-1])
 
 # reconstruction loss    

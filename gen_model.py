@@ -318,8 +318,8 @@ class s2s_ts_Model():
             optimizer = tf.train.AdamOptimizer(self.learning_rate)
             
             # kernel alignment loss with normalized Frobenius norm
-            code_K_norm = self.code_K/tf.norm(self.code_K, ord='fro', axis=[-2,-1])
-            prior_K_norm = self.prior_K/tf.norm(self.prior_K, ord='fro', axis=[-2,-1])
+            code_K_norm = self.code_K/tf.reduce_max(self.code_K)#tf.norm(self.code_K, ord='fro', axis=[-2,-1])
+            prior_K_norm = self.prior_K/tf.reduce_max(self.prior_K)#tf.norm(self.prior_K, ord='fro', axis=[-2,-1])
             self.k_loss = tf.norm(code_K_norm - prior_K_norm, ord='fro', axis=[-2,-1])
             
             # L2 norm loss
