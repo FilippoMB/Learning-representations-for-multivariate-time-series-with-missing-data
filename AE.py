@@ -279,7 +279,7 @@ acc, f1 = classify_with_knn(tr_code, train_labels[:, 0], ts_code, test_labels[:,
 print('kNN -- acc: %.3f, F1: %.3f'%(acc, f1))
 
 # anomaly detection
-anomaly_detect(test_data, pred, test_len, test_labels, threshold=0.3)
+anomaly_detect(test_data, pred, test_len, test_labels, 0.3, plot_on)
 
 # dim reduction plots
 if dim_red:

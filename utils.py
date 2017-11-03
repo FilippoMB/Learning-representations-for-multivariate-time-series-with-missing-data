@@ -106,8 +106,8 @@ def mse_and_corr(targets, preds, targets_len):
     
     return tot_mse, tot_corr
 
-def anomaly_detect(targets, preds, targets_len, target_labels, threshold=0.5):
-    from sklearn.metrics import f1_score, accuracy_score
+def anomaly_detect(targets, preds, targets_len, target_labels, threshold=0.5, plot_on=False):
+    from sklearn.metrics import f1_score, accuracy_score, roc_auc_score
     
     mse_list = []
     for i in range(targets.shape[1]):
@@ -121,11 +121,13 @@ def anomaly_detect(targets, preds, targets_len, target_labels, threshold=0.5):
         
     F1 = f1_score(target_labels, pred_labels, average='binary')
     acc = accuracy_score(target_labels, pred_labels)
-    print('Anomaly detection -- acc: %.3f, F1: %.3f'%(acc,F1))
+    auc = roc_auc_score(target_labels, pred_labels)
+    print('Anomaly detection -- acc: %.3f, F1: %.3f, AUC: %.3f'%(acc,F1,auc))
     
-    plt.bar(np.arange(100), mse_list[:100], color='r', edgecolor='none',width=1.0)
-    plt.bar(np.arange(100,len(mse_list)), mse_list[100:], color='b', edgecolor='none',width=1.0)
-    plt.show()
+    if plot_on:
+        plt.bar(np.arange(100), mse_list[:100], color='r', edgecolor='none',width=1.0)
+        plt.bar(np.arange(100,len(mse_list)), mse_list[100:], color='b', edgecolor='none',width=1.0)
+        plt.show()
         
     return acc, F1
     

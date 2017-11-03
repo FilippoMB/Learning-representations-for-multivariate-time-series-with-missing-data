@@ -1,17 +1,21 @@
 import numpy as np
 import time
 from sklearn import svm
-from sklearn.metrics import accuracy_score, classification_report, roc_auc_score
+from sklearn.metrics import accuracy_score, classification_report, roc_auc_score, f1_score
+from TS_datasets import getBlood
 
 
 def get_data():
-    import scipy.io as sio
 
-    x_tr = sio.loadmat('Blood/BLOOD_full.mat')['X']
-    x_te = sio.loadmat('Blood/BLOOD_full.mat')['Xte']
-    # original labels: 1=anomaly, 0=nominal
-    y_tr = sio.loadmat('Blood/BLOOD_full.mat')['Y']
-    y_te = sio.loadmat('Blood/BLOOD_full.mat')['Yte']
+    # original labels: 1=anomaly, 0=nominal   
+    (x_tr, y_tr, _, _, _,
+        _, _, _, _, _,
+        x_te, y_te, _, _, _) = getBlood()  
+
+    # transpose [T, N, V] --> [N, T, V]
+    x_tr = np.transpose(x_tr,axes=[1,0,2])
+    x_te = np.transpose(x_te,axes=[1,0,2]) 
+
     # stack data
     x = np.vstack((x_tr, x_te))
     y_r = np.vstack((y_tr, y_te))
@@ -23,7 +27,7 @@ def get_data():
     t = x.shape[1]
     v = x.shape[2]
     x_r = np.reshape(x, [n, t * v])
-
+    
     # modify labels for oneclass-SVM
     # 1=nominal, -1=non nominal
     n_zeros = y_r[y_r == 0].size
@@ -35,6 +39,28 @@ def get_data():
     return x_r, y_r
 
 
+def get_original_data():
+    
+    # original labels: 1=anomaly, 0=nominal   
+    (x_tr, y_tr, _, _, _,
+        _, _, _, _, _,
+        x_te, y_te, _, _, _) = getBlood()  
+
+    # transpose and reshape [T, N, V] --> [N, T, V] --> [N, T*V]
+    x_tr = np.transpose(x_tr,axes=[1,0,2])
+    x_tr = np.reshape(x_tr, (x_tr.shape[0], x_tr.shape[1]*x_tr.shape[2]))
+    x_te = np.transpose(x_te,axes=[1,0,2])
+    x_te = np.reshape(x_te, (x_te.shape[0], x_te.shape[1]*x_te.shape[2]))   
+    
+    y_tr = y_tr.astype(np.int8)
+    y_tr[y_tr == 1] = -1
+    y_tr[y_tr == 0] = 1
+    y_te = y_te.astype(np.int8)
+    y_te[y_te == 1] = -1
+    y_te[y_te == 0] = 1
+    
+    return x_tr, y_tr, x_te, y_te
+    
 def get_problem_instance(x, y, nominal_percentage_training=0.5):
 
     index_ones = np.where(y == 1)[0]
@@ -68,10 +94,11 @@ def get_problem_instance(x, y, nominal_percentage_training=0.5):
 if __name__ == "__main__":
 
     # not reproducible
-    np.random.seed(int(time.time()))
+    np.random.seed(None)
 
-    x, y = get_data()
-    x_tr, y_tr, x_te, y_te = get_problem_instance(x, y)
+#    x, y = get_data()
+#    x_tr, y_tr, x_te, y_te = get_problem_instance(x, y)
+    x_tr, y_tr, x_te, y_te = get_original_data()
 
     start_time = time.time()
     # fit the model (with fixed hyper-parameters)
@@ -88,7 +115,7 @@ if __name__ == "__main__":
     acc_tr = accuracy_score(y_tr, y_tr_pred)
     acc_te = accuracy_score(y_te, y_te_pred)
 
-    print("Accuracy on training set: " + str(acc_tr))
-    print("Accuracy on test set: " + str(acc_te))
+    print("F1: " + str(f1_score(y_te, y_te_pred)))
+    print("ACC: " + str(acc_te))
     print("AUC: " + str(roc_auc_score(y_te, y_te_pred)))
     print(classification_report(y_te, y_te_pred, target_names=['class -1', 'class 1']))

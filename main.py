@@ -9,14 +9,14 @@ import argparse, sys
 from utils import classify_with_knn, mse_and_corr, reverse_input, anomaly_detect
 
 plot_on = 0
-_seed = 1
+_seed = None
 np.random.seed(_seed)
 
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='BLOOD', help="ID of the dataset", type=str)
 parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
-parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
+parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=10, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
 parser.add_argument("--decoder_init", default='last', help="init decoder with last state of only last layer (last, zero, all)", type=str)
 parser.add_argument("--sched_prob", default=1.0, help="probability of sampling from teacher signal in scheduled sampling", type=float)
@@ -294,7 +294,7 @@ tot_mse, tot_corr = mse_and_corr(test_targets, inf_outs, test_len)
 print('Test MSE: {}\nTest Pearson correlation: {}'.format(tot_mse, tot_corr))
 
 # anomaly detect
-anomaly_detect(test_targets, inf_outs, test_len, test_labels, threshold=0.3)
+anomaly_detect(test_targets, inf_outs, test_len, test_labels, 0.3, plot_on)
 
 # kNN classification on the codes
 fdtr = {G.encoder_inputs: train_data,
