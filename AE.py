@@ -9,9 +9,6 @@ import math
 
 dim_red = 0
 plot_on = 1
-interp_on = 0
-tied_weights = 0
-lin_dec = 1
 
 # parse input data
 parser = argparse.ArgumentParser()
@@ -24,6 +21,12 @@ parser.add_argument("--batch_size", default=25, help="number of samples in each 
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 parser.add_argument("--hidden_size", default=30, help="size of the code", type=int)
+parser.add_argument("--tied_weights", dest='tied_weights', action='store_true', help="use tied weights in the decoder")
+parser.add_argument("--lin_dec", dest='lin_dec', action='store_true', help="use decoder with linear activations")
+parser.add_argument("--interp_on", dest='interp_on', action='store_true', help="interpolate time series to match the length of the longest one")
+parser.set_defaults(tied_weights=False)
+parser.set_defaults(lin_dec=True)
+parser.set_defaults(interp_on=False)
 args = parser.parse_args()
 print(args)
 
@@ -67,7 +70,7 @@ else:
         test_data_orig, test_labels, test_len, _, K_ts) = getData()
        
 # interpolation
-if np.min(train_len) < np.max(train_len) and interp_on:
+if np.min(train_len) < np.max(train_len) and args.interp_on:
     print('-- Data Interpolation --')
     train_data = interp_data(train_data, train_len)
     valid_data = interp_data(valid_data, valid_len)
@@ -110,7 +113,7 @@ code = tf.nn.tanh(tf.matmul(hidden_1, We2) + be2)
 code_K = tf.tensordot(code, tf.transpose(code), axes=1)
 
 # decoder
-if tied_weights:
+if args.tied_weights:
     Wd1 = tf.transpose(We2)
     Wd2 = tf.transpose(We1)
 else:
@@ -120,7 +123,7 @@ else:
 bd1 = tf.Variable(tf.zeros([args.hidden_size]))  
 bd2 = tf.Variable(tf.zeros([input_length])) 
 
-if lin_dec:
+if args.lin_dec:
     hidden_2 = tf.matmul(code, Wd1) + bd1
 else:
     hidden_2 = tf.nn.tanh(tf.matmul(code, Wd1) + bd1)
@@ -242,7 +245,7 @@ pred = np.reshape(pred, (test_data_orig.shape[1], test_data_orig.shape[0], test_
 pred = np.transpose(pred,axes=[1,0,2])
 test_data = test_data_orig
 
-if np.min(train_len) < np.max(train_len) and interp_on:
+if np.min(train_len) < np.max(train_len) and args.interp_on:
     print('-- Reverse Interpolation --')
     pred = interp_data(pred, test_len, restore=True)
 
