@@ -12,10 +12,10 @@ plot_on = 1
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='BLOOD', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--dataset_id", default='AF', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--code_size", default=10, help="size of the code", type=int)
 parser.add_argument("--w_reg", default=0.0, help="weight of the regularization in the loss function", type=float)
-parser.add_argument("--a_reg", default=0.2, help="weight of the kernel alignment", type=float)
+parser.add_argument("--a_reg", default=0.0, help="weight of the kernel alignment", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
@@ -61,7 +61,9 @@ elif args.dataset_id == 'ODE2':
 elif args.dataset_id == 'AUS':        
     getData = getAuslan
 elif args.dataset_id == 'BLOOD':        
-    getData = getBlood
+    getData = getBlood    
+elif args.dataset_id == 'AF':        
+    getData = getAF
 else:
     sys.exit('Invalid dataset_id')
     

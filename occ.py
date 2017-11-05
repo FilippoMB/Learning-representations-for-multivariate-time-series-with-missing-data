@@ -2,7 +2,7 @@ import numpy as np
 import time
 from sklearn import svm
 from sklearn.metrics import accuracy_score, classification_report, roc_auc_score, f1_score
-from TS_datasets import getBlood
+from TS_datasets import getBlood, getAF
 
 
 def get_data():
@@ -10,7 +10,7 @@ def get_data():
     # original labels: 1=anomaly, 0=nominal   
     (x_tr, y_tr, _, _, _,
         _, _, _, _, _,
-        x_te, y_te, _, _, _) = getBlood()  
+        x_te, y_te, _, _, _) = getAF() #getBlood()  
 
     # transpose [T, N, V] --> [N, T, V]
     x_tr = np.transpose(x_tr,axes=[1,0,2])

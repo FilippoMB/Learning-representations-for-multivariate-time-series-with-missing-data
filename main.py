@@ -14,7 +14,7 @@ np.random.seed(_seed)
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='BLOOD', help="ID of the dataset", type=str)
+parser.add_argument("--dataset_id", default='AF', help="ID of the dataset", type=str)
 parser.add_argument("--cell_type", default='GRU', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
 parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=10, help="number of hidden units in the encoder/decoder. If encoder is bidirectional, decoders units are doubled", type=int)
@@ -124,6 +124,11 @@ elif args.dataset_id == 'BLOOD':
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, _) = getBlood()  
+
+elif args.dataset_id == 'AF':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, _) = getAF()  
     
 else:
     sys.exit('Invalid dataset_id')
