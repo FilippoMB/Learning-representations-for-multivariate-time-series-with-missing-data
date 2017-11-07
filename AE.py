@@ -186,7 +186,7 @@ max_batches = train_data.shape[0]//batch_size
 loss_track = []
 kloss_track = []
 min_vs_loss = np.infty
-model_name = "/tmp/dkae_models/m_0.ckpt"
+model_name = "/tmp/tkae_models/m_"+str(time.strftime("%Y%m%d-%H%M%S"))+".ckpt" #"/tmp/dkae_models/m_0.ckpt"
 train_writer = tf.summary.FileWriter('/tmp/tensorboard', graph=sess.graph)
 saver = tf.train.Saver()
 

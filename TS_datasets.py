@@ -518,7 +518,7 @@ def getBlood(inp='last'):
     
 # ========== AF data (OCC) ==========
 def getAF(inp='zero'):
-    af_data = scipy.io.loadmat('AF/TCK_AF_OCC_30.mat')
+    af_data = scipy.io.loadmat('AF/TCK_AF_30_50m.mat')
     train_data = af_data['X']
     train_labels = af_data['Y']
     train_len = af_data['X_len']
