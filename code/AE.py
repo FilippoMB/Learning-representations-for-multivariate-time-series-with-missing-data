@@ -2,9 +2,8 @@ import tensorflow as tf
 import argparse, sys
 from TS_datasets import *
 import numpy as np
-import matplotlib.pyplot as plt
 from utils import classify_with_knn, interp_data, mse_and_corr, dim_reduction_plot, anomaly_detect
-import math, time, pylab
+import math, time
 
 dim_red = 0
 plot_on = 1
@@ -256,6 +255,9 @@ if np.min(train_len) < np.max(train_len) and args.interp_on:
     pred = interp_data(pred, test_len, restore=True)
 
 if plot_on:
+    
+    import matplotlib.pyplot as plt
+    import pylab
     
     # plot the reconstruction of a random time series
     plot_idx1 = np.random.randint(low=0,high=test_data.shape[1])

@@ -4,7 +4,6 @@ import scipy.io
 from sklearn import preprocessing
 import sys
 from utils import ideal_kernel
-import pandas as pd
 from scipy import sparse
 from scipy.sparse import linalg as slinalg
 
@@ -338,6 +337,7 @@ def getJapDataMiss(kernel='TCK', inp='zero', miss=0):
         train_data[np.isnan(train_data)] = 0 
     
     elif inp == 'last': # replace NaN with the last seen value
+       import pandas as pd
        train_data0 = train_data[0,:,:]
        train_data0[np.isnan(train_data0)] = 0
        train_data[0,:,:] = train_data0
@@ -426,6 +426,7 @@ def getBlood(inp='last'):
         test_data[np.isnan(test_data)] = 0 
     
     elif inp == 'last': # replace NaN with the last seen value
+       import pandas as pd
        train_data0 = train_data[0,:,:]
        train_data0[np.isnan(train_data0)] = 0
        train_data[0,:,:] = train_data0
@@ -466,7 +467,7 @@ def getBlood(inp='last'):
     
 # ========== AF data ==========
 def getAF(inp='zero'):
-    af_data = scipy.io.loadmat('../dataset/AF/TCK_AF_30_50m.mat')
+    af_data = scipy.io.loadmat('../dataset/AF/TCK_AF_30_2v_50m.mat')
     train_data = af_data['X']
     train_labels = af_data['Y']
     train_len = af_data['X_len']
@@ -479,8 +480,9 @@ def getAF(inp='zero'):
     K_ts = (K_ts-np.amin(K_ts))/(np.amax(K_ts)-np.amin(K_ts))
     
     # add trailing singleton dim
-    train_data = np.expand_dims(train_data, axis=-1)
-    test_data = np.expand_dims(test_data, axis=-1)
+    if len(train_data.shape) < 3:
+        train_data = np.expand_dims(train_data, axis=-1)
+        test_data = np.expand_dims(test_data, axis=-1)
     
     # time_major=True
     train_data = np.transpose(train_data,axes=[1,0,2])
@@ -492,6 +494,7 @@ def getAF(inp='zero'):
         test_data[np.isnan(test_data)] = 0 
     
     elif inp == 'last': # replace NaN with the last seen value
+       import pandas as pd
        train_data0 = train_data[0,:,:]
        train_data0[np.isnan(train_data0)] = 0
        train_data[0,:,:] = train_data0

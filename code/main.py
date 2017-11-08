@@ -5,7 +5,7 @@ import time
 import tensorflow as tf
 from TS_datasets import *
 import argparse, sys
-from utils import classify_with_knn, mse_and_corr, reverse_input, anomaly_detect
+from utils import classify_with_knn, mse_and_corr, anomaly_detect
 
 plot_on = 0
 _seed = None
