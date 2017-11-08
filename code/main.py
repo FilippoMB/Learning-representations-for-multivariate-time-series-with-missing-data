@@ -1,6 +1,5 @@
 from gen_model import s2s_ts_Model
 import numpy as np
-import matplotlib.pyplot as plt
 np.set_printoptions(precision=2)
 import time
 import tensorflow as tf
@@ -245,6 +244,7 @@ try:
                                            
             # plot a random ts from the validation set and code inner products
             if plot_on:
+                import matplotlib.pyplot as plt
                 plt.matshow(vs_code_K)
                 plt.show()
                 

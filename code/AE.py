@@ -266,7 +266,7 @@ if plot_on:
     plt.legend(loc='best')
     plt.title('Prediction of a random MTS variable')
     plt.show()  
-    np.savetxt('AE_pred',ts_out)
+    np.savetxt('..logs/AE_pred',ts_out)
         
     fig = plt.figure()
     ax = fig.add_subplot(111)

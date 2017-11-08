@@ -1,30 +1,32 @@
-import matplotlib.pyplot as plt
 from sklearn.decomposition import TruncatedSVD
-from sklearn.manifold import TSNE
+
 import numpy as np
 from scipy import interpolate
 
 
 def dim_reduction_plot(data, label):
+    
+    import matplotlib.pyplot as plt
   
-  # PCA
-  PCA_model = TruncatedSVD(n_components=3).fit(data)
-  data_PCA = PCA_model.transform(data)
-  plt.scatter(data_PCA[:,0],data_PCA[:,1],s=60,c=label,marker='.',linewidths = 0,cmap='Paired')
-  plt.title('PCA')
-  plt.gca().axes.get_xaxis().set_ticks([])
-  plt.gca().axes.get_yaxis().set_ticks([])
-  plt.show()
+    # PCA
+    PCA_model = TruncatedSVD(n_components=3).fit(data)
+    data_PCA = PCA_model.transform(data)
+    plt.scatter(data_PCA[:,0],data_PCA[:,1],s=60,c=label,marker='.',linewidths = 0,cmap='Paired')
+    plt.title('PCA')
+    plt.gca().axes.get_xaxis().set_ticks([])
+    plt.gca().axes.get_yaxis().set_ticks([])
+    plt.show()
   
-  # tSNE
-#  tSNE_model = TSNE(verbose=2, perplexity=30,min_grad_norm=1E-12,n_iter=3000)
-#  data_tsne = tSNE_model.fit_transform(data)
-#  plt.scatter(data_tsne[:,0],data_tsne[:,1],c=label,marker='.',linewidths = 0,cmap='Paired')
-#  plt.title('tSNE')
-#  plt.gca().axes.get_xaxis().set_ticks([])
-#  plt.gca().axes.get_yaxis().set_ticks([])
-#  plt.show(block=block_flag)
-  return
+#    # tSNE
+#    from sklearn.manifold import TSNE
+#    tSNE_model = TSNE(verbose=2, perplexity=30,min_grad_norm=1E-12,n_iter=3000)
+#    data_tsne = tSNE_model.fit_transform(data)
+#    plt.scatter(data_tsne[:,0],data_tsne[:,1],c=label,marker='.',linewidths = 0,cmap='Paired')
+#    plt.title('tSNE')
+#    plt.gca().axes.get_xaxis().set_ticks([])
+#    plt.gca().axes.get_yaxis().set_ticks([])
+#    plt.show()
+    return
 
 
 def ideal_kernel(labels):
@@ -126,10 +128,12 @@ def anomaly_detect(targets, preds, targets_len, target_labels, threshold=0.5, pl
     
     if plot_on:
         
+        import brewer2mpl
+        import matplotlib.pyplot as plt
+        
         n_class0 = np.sum(target_labels==0)
         n_class1 = np.sum(target_labels==1)
-        
-        import brewer2mpl
+                
         bmap = brewer2mpl.get_map('Set1', 'qualitative', 3)
         colors = bmap.mpl_colors
         plt.figure(figsize=(5.5,3)) 
@@ -176,59 +180,3 @@ def reverse_input(data, data_len):
         data_reversed[:len_i,i,:] = data_i[::-1,:]
     
     return data_reversed
-
-
-def check_mso_spectra():
-    """
-    Debug routing to plot Fourier spectra of 6 randomly selected MSO time series
-    with and without interpolation to the maximum time series len.
-    """
-
-    from scipy.fftpack import fft
-    from TS_datasets import getMSO, getWafer
-    from utils import interp_data
-
-    (train_data, train_labels, train_len, _, _,
-    _, _, _, _, _,
-    _, _, _, _, _) = getMSO(min_len=70, max_len=120)
-
-    train_data_interp = interp_data(train_data, train_len, interp_kind='cubic')
-
-    # select time series and related lengths
-
-    import matplotlib.pyplot as plt
-
-    ts_index_list = np.random.randint(0, 99, 6)
-    # multiplot
-    plt.figure(1)
-
-    subplot = 231
-    for ts_index in ts_index_list:
-        ts = train_data[:, ts_index, 0]
-        ts_interp = train_data_interp[:, ts_index, 0]
-        ts_len = train_len[ts_index]
-        ts_interp_len = len(ts_interp)
-
-        # sample spacing
-        t = 1.0 / ts_len
-        t_interp = 1.0 / ts_interp_len
-
-        # FFT
-        y = fft(ts)
-        x = np.linspace(0.0, 1.0 / (2.0 * t), ts_len // 2)
-        y_interp = fft(ts_interp)
-        x_interp = np.linspace(0.0, 1.0 / (2.0 * t_interp), ts_interp_len // 2)
-
-        plt.subplot(subplot)
-
-        plt.plot(x, 2.0 / ts_len * np.abs(y[0:ts_len // 2]), '-b')
-        plt.plot(x_interp, 2.0 / ts_interp_len * np.abs(y_interp[0:ts_interp_len // 2]), '-r')
-        plt.legend(['original', 'interp'])
-        plt.title("Time series ID: " + str(ts_index))
-        plt.xlabel('Frequency')
-        plt.ylabel('FFT')
-        plt.grid()
-
-        subplot += 1
-
-    plt.show()
