@@ -404,7 +404,7 @@ def getJapDataMiss(kernel='TCK', inp='zero', miss=0):
     
 # ========== Blood data (OCC) ==========
 def getBlood(inp='last'):
-    blood_data = scipy.io.loadmat('../dataset/Blood/Blood_LPS_OCC.mat')
+    blood_data = scipy.io.loadmat('../dataset/Blood/Blood_LPS.mat')
     train_data = blood_data['X']
     train_labels = blood_data['Y']
     train_len = blood_data['X_len']

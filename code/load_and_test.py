@@ -7,14 +7,12 @@ import argparse, sys
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='JAPm', help="ID of the dataset", type=str)
-parser.add_argument("--graph_name", default="0", help="name of the file to be loaded", type=str)
-parser.add_argument("--reverse_input", dest='reverse_input', action='store_true', help="fed input reversed for training")
+parser.add_argument("--dataset_id", default='BLOOD', help="ID of the dataset", type=str)
+parser.add_argument("--graph_name", default="20171109-000147", help="name of the file to be loaded", type=str)
 parser.add_argument("--dim_red", dest='dim_red', action='store_true', help="compute PCA and tSNE")
 parser.add_argument("--plot_on", dest='plot_on', action='store_true', help="make plots")
 parser.add_argument("--plot_code", dest='plot_code', action='store_true', help="plots the code in 2d")
-parser.set_defaults(reverse_input=False)
-parser.set_defaults(dim_red=False)
+parser.set_defaults(dim_red=True)
 parser.set_defaults(plot_on=True)
 parser.set_defaults(plot_code=False)
 args = parser.parse_args()
@@ -77,6 +75,11 @@ elif args.dataset_id == 'ECG2':
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, K_ts) = getECGDataFull()  
+
+elif args.dataset_id == 'BLOOD':        
+    (train_data, train_labels, train_len, train_targets, K_tr,
+        valid_data, valid_labels, valid_len, valid_targets, K_vs,
+        test_data, test_labels, test_len, test_targets, K_ts) = getBlood()  
     
 else:
     sys.exit('Invalid dataset_id')
@@ -89,10 +92,6 @@ print('\n**** Processing {}: Tr{}, Ts{} ****\n'.format(args.dataset_id, train_da
 #test_data = test_data[:,sort_idx,:]
 #test_targets = test_targets[:,sort_idx,:]
 #test_len = test_len[sort_idx]
-
-if args.reverse_input:
-    train_data = train_data[::-1,:,:]
-    test_data = test_data[::-1,:,:]
 
 # target kernel matrix
 if args.plot_on:
@@ -107,8 +106,8 @@ tf.reset_default_graph()
 sess = tf.Session()
     
 # restore graph
-new_saver = tf.train.import_meta_graph("/tmp/tkae_models/m_"+args.graph_name+".ckpt.meta", clear_devices=True)
-new_saver.restore(sess, "/tmp/tkae_models/m_"+args.graph_name+".ckpt")  
+new_saver = tf.train.import_meta_graph("../models/tkae_"+args.graph_name+".ckpt.meta", clear_devices=True)
+new_saver.restore(sess, "../models/tkae_"+args.graph_name+".ckpt")  
 
 encoder_inputs = tf.get_collection("encoder_inputs")[0]
 encoder_inputs_length = tf.get_collection("encoder_inputs_length")[0]
@@ -148,8 +147,8 @@ if args.plot_on:
     plt.plot(pred, label='pred')
     plt.legend(loc='upper right')
     plt.show(block=True)
-    np.savetxt('TKAE_pred',pred)
-    np.savetxt('true_signal',target)
+    np.savetxt('../logs/TKAE_pred',pred)
+    np.savetxt('../logs/true_signal',target)
 
 # 2d plot of the codes
 if args.plot_code:
@@ -160,12 +159,12 @@ if args.plot_code:
 
 # dim reduction plots
 if args.dim_red:
-    dim_reduction_plot(ts_context, test_labels, block_flag)
+    dim_reduction_plot(ts_context, test_labels)
 
 # MSE and corr
-tot_mse, tot_corr = mse_and_corr(test_targets, ts_pred, test_len)
-print('Test MSE: %.3f\nTest Pearson correlation: %.3f'%(tot_mse, tot_corr))
+test_mse, test_corr = mse_and_corr(test_targets, ts_pred, test_len)
+print('Test MSE=%.3f, Corr=%.3f'%(test_mse, test_corr))
 
 # kNN classification on the codes
-acc = classify_with_knn(tr_context, train_labels[:, 0], ts_context, test_labels[:, 0])
-print('kNN acc: {}'.format(acc))
+acc, f1 = classify_with_knn(tr_context, train_labels[:, 0], ts_context, test_labels[:, 0], k=3)
+print('kNN -- acc: %.3f, F1: %.3f'%(acc, f1))

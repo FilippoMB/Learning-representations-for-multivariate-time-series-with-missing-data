@@ -5,12 +5,12 @@ import numpy as np
 from utils import classify_with_knn, interp_data, mse_and_corr, dim_reduction_plot, anomaly_detect
 import math, time
 
-dim_red = 0
+dim_red = 1
 plot_on = 1
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='AF', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--dataset_id", default='BLOOD', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--code_size", default=10, help="size of the code", type=int)
 parser.add_argument("--w_reg", default=0.0, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--a_reg", default=0.0, help="weight of the kernel alignment", type=float)
@@ -268,7 +268,7 @@ if plot_on:
     plt.legend(loc='best')
     plt.title('Prediction of a random MTS variable')
     plt.show()  
-    np.savetxt('..logs/AE_pred',ts_out)
+    np.savetxt('../logs/AE_pred',ts_out)
         
     fig = plt.figure()
     ax = fig.add_subplot(111)

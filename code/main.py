@@ -13,7 +13,7 @@ np.random.seed(_seed)
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='AF', help="ID of the dataset", type=str)
+parser.add_argument("--dataset_id", default='BLOOD', help="ID of the dataset", type=str)
 parser.add_argument("--cell_type", default='GRU', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
 parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=10, help="number of hidden units in the encoder/decoder", type=int)
@@ -21,7 +21,7 @@ parser.add_argument("--decoder_init", default='all', help="init decoder with las
 parser.add_argument("--sched_prob", default=0.9, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
-parser.add_argument("--w_align", default=0.1, help="kernel alignment weight", type=float)
+parser.add_argument("--w_align", default=0.5, help="kernel alignment weight", type=float)
 parser.add_argument("--w_l2", default=0.0, help="l2 norm regularization weight", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)

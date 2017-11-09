@@ -7,14 +7,20 @@ from scipy import interpolate
 def dim_reduction_plot(data, label):
     
     import matplotlib.pyplot as plt
+    import brewer2mpl
+    bmap = brewer2mpl.get_map('Set1', 'qualitative', 3).mpl_colormap
   
     # PCA
     PCA_model = TruncatedSVD(n_components=3).fit(data)
     data_PCA = PCA_model.transform(data)
-    plt.scatter(data_PCA[:,0],data_PCA[:,1],s=60,c=label,marker='.',linewidths = 0,cmap='Paired')
+    plt.figure(figsize=(3.5,3.5))
+    plt.scatter(data_PCA[:,0],data_PCA[:,1],s=80,c=label,marker='.',linewidths=0.15,cmap=bmap, alpha=0.5,edgecolor='black')
     plt.title('PCA')
     plt.gca().axes.get_xaxis().set_ticks([])
     plt.gca().axes.get_yaxis().set_ticks([])
+    for spine in  plt.gca().axes.spines.values():
+        spine.set_edgecolor('#565656')
+    plt.savefig('../logs/PCA.pdf',format='pdf')
     plt.show()
   
 #    # tSNE
@@ -138,15 +144,17 @@ def anomaly_detect(targets, preds, targets_len, target_labels, threshold=0.5, pl
         colors = bmap.mpl_colors
         plt.figure(figsize=(5.5,3)) 
         #plt.grid() 
-        plt.xlim(1,n_class0+n_class1)
+        plt.xlim(0,n_class0+n_class1-1)
         plt.ylabel('Reconstruction MSE')
         plt.yscale('log')
         plt.title('Outlier detection')        
         plt.bar(np.arange(n_class0), mse_list[:n_class0], color=colors[0], edgecolor='none',width=1.0,label='nominal')
         plt.bar(np.arange(n_class0,len(mse_list)), mse_list[n_class0:], color=colors[1], edgecolor='none',width=1.0,label='outlier') 
-        plt.plot([1, n_class0+n_class1], [mean_err*threshold, mean_err*threshold], 'k--', label='threshold', linewidth=2)
+        plt.plot([0,n_class0+n_class1-1], [mean_err*threshold, mean_err*threshold], 'k--', label='threshold', linewidth=1.5)
         plt.gca().axes.get_xaxis().set_ticks([])
         plt.legend(loc='best', fontsize=10)       
+        for spine in  plt.gca().axes.spines.values():
+            spine.set_edgecolor('#565656')
         plt.savefig('../logs/Anomaly_detect.pdf',format='pdf')
         plt.show()
         
