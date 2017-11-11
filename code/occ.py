@@ -1,6 +1,7 @@
 import numpy as np
 import time
 from sklearn import svm
+from sklearn.ensemble import IsolationForest
 from sklearn.metrics import accuracy_score, classification_report, roc_auc_score, f1_score
 from TS_datasets import getBlood, getAF
 
@@ -117,6 +118,25 @@ if __name__ == "__main__":
     acc_tr = accuracy_score(y_tr, y_tr_pred)
     acc_te = accuracy_score(y_te, y_te_pred)
 
+    print("F1: " + str(f1_score(y_te, y_te_pred)))
+    print("ACC: " + str(acc_te))
+    print("AUC: " + str(roc_auc_score(y_te, y_te_scores)))
+    print(classification_report(y_te, y_te_pred, target_names=['class -1', 'class 1']))
+
+    outliers_fraction = 0.5
+    clf_if = IsolationForest(contamination=outliers_fraction, random_state=np.random.RandomState())
+    clf_if.fit(x_tr)
+
+    y_tr_scores = clf_if.decision_function(x_tr)
+    y_te_scores = clf_if.decision_function(x_te)
+    y_tr_pred = clf_if.predict(x_tr)
+    y_te_pred = clf_if.predict(x_te)
+
+    # performance evaluation
+    acc_tr = accuracy_score(y_tr, y_tr_pred)
+    acc_te = accuracy_score(y_te, y_te_pred)
+
+    print("Isolation Forest")
     print("F1: " + str(f1_score(y_te, y_te_pred)))
     print("ACC: " + str(acc_te))
     print("AUC: " + str(roc_auc_score(y_te, y_te_scores)))
