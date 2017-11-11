@@ -38,29 +38,7 @@ def get_data():
 
     return x_r, y_r
 
-
-def get_original_data():
-    
-    # original labels: 1=anomaly, 0=nominal   
-    (x_tr, y_tr, _, _, _,
-        _, _, _, _, _,
-        x_te, y_te, _, _, _) = getBlood()  
-
-    # transpose and reshape [T, N, V] --> [N, T, V] --> [N, T*V]
-    x_tr = np.transpose(x_tr,axes=[1,0,2])
-    x_tr = np.reshape(x_tr, (x_tr.shape[0], x_tr.shape[1]*x_tr.shape[2]))
-    x_te = np.transpose(x_te,axes=[1,0,2])
-    x_te = np.reshape(x_te, (x_te.shape[0], x_te.shape[1]*x_te.shape[2]))   
-    
-    y_tr = y_tr.astype(np.int8)
-    y_tr[y_tr == 1] = -1
-    y_tr[y_tr == 0] = 1
-    y_te = y_te.astype(np.int8)
-    y_te[y_te == 1] = -1
-    y_te[y_te == 0] = 1
-    
-    return x_tr, y_tr, x_te, y_te
-    
+   
 def get_problem_instance(x, y, nominal_percentage_training=0.5):
 
     index_ones = np.where(y == 1)[0]
@@ -91,6 +69,29 @@ def get_problem_instance(x, y, nominal_percentage_training=0.5):
     return x_tr, y_tr, x2_te, y2_te
 
 
+def get_original_data():
+    
+    # original labels: 1=anomaly, 0=nominal   
+    (x_tr, y_tr, _, _, _,
+        _, _, _, _, _,
+        x_te, y_te, _, _, _) = getAF()  
+
+    # transpose and reshape [T, N, V] --> [N, T, V] --> [N, T*V]
+    x_tr = np.transpose(x_tr,axes=[1,0,2])
+    x_tr = np.reshape(x_tr, (x_tr.shape[0], x_tr.shape[1]*x_tr.shape[2]))
+    x_te = np.transpose(x_te,axes=[1,0,2])
+    x_te = np.reshape(x_te, (x_te.shape[0], x_te.shape[1]*x_te.shape[2]))   
+    
+    y_tr = y_tr.astype(np.int8)
+    y_tr[y_tr == 1] = -1
+    y_tr[y_tr == 0] = 1
+    y_te = y_te.astype(np.int8)
+    y_te[y_te == 1] = -1
+    y_te[y_te == 0] = 1
+    
+    return x_tr, y_tr, x_te, y_te
+
+
 if __name__ == "__main__":
 
     # not reproducible
@@ -102,12 +103,13 @@ if __name__ == "__main__":
 
     start_time = time.time()
     # fit the model (with fixed hyper-parameters)
-    clf = svm.OneClassSVM(nu=0.05, kernel="rbf", gamma=0.01)
+    clf = svm.OneClassSVM(nu=0.5, kernel="rbf", gamma=0.7)
     clf.fit(x_tr)
 
     # prediction
     y_tr_pred = clf.predict(x_tr)
     y_te_pred = clf.predict(x_te)
+    y_te_scores = clf.decision_function(x_te)
 
     print("Running time: %.6f sec" % (time.time() - start_time))
 
@@ -117,5 +119,5 @@ if __name__ == "__main__":
 
     print("F1: " + str(f1_score(y_te, y_te_pred)))
     print("ACC: " + str(acc_te))
-    print("AUC: " + str(roc_auc_score(y_te, y_te_pred)))
+    print("AUC: " + str(roc_auc_score(y_te, y_te_scores)))
     print(classification_report(y_te, y_te_pred, target_names=['class -1', 'class 1']))

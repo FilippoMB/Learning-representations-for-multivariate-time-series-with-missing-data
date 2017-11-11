@@ -5,15 +5,16 @@ import numpy as np
 from utils import classify_with_knn, interp_data, mse_and_corr, dim_reduction_plot, anomaly_detect
 import math, time
 
-dim_red = 1
+dim_red = 0
 plot_on = 1
+anomaly_detect_on = 1
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='BLOOD', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--code_size", default=10, help="size of the code", type=int)
-parser.add_argument("--w_reg", default=0.0, help="weight of the regularization in the loss function", type=float)
-parser.add_argument("--a_reg", default=0.0, help="weight of the kernel alignment", type=float)
+parser.add_argument("--dataset_id", default='AF', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--code_size", default=8, help="size of the code", type=int)
+parser.add_argument("--w_l2", default=0.0, help="weight of the regularization in the loss function", type=float)
+parser.add_argument("--w_align", default=0, help="weight of the kernel alignment", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
@@ -23,7 +24,7 @@ parser.add_argument("--tied_weights", dest='tied_weights', action='store_true', 
 parser.add_argument("--lin_dec", dest='lin_dec', action='store_true', help="use decoder with linear activations")
 parser.add_argument("--interp_on", dest='interp_on', action='store_true', help="interpolate time series to match the length of the longest one")
 parser.set_defaults(tied_weights=False)
-parser.set_defaults(lin_dec=True)
+parser.set_defaults(lin_dec=False)
 parser.set_defaults(interp_on=False)
 args = parser.parse_args()
 print(args)
@@ -67,16 +68,16 @@ else:
     
 (train_data, train_labels, train_len, _, K_tr,
         valid_data, _, valid_len, _, K_vs,
-        test_data_orig, test_labels, test_len, _, K_ts) = getData()
-       
+        test_data_shaped, test_labels, test_len, _, K_ts) = getData()
+      
 # interpolation
 if np.min(train_len) < np.max(train_len) and args.interp_on:
     print('-- Data Interpolation --')
     train_data = interp_data(train_data, train_len)
     valid_data = interp_data(valid_data, valid_len)
-    test_data = interp_data(test_data_orig, test_len)
+    test_data = interp_data(test_data_shaped, test_len)
 else:
-    test_data = test_data_orig
+    test_data = test_data_shaped
 
 # transpose and reshape [T, N, V] --> [N, T, V] --> [N, T*V]
 train_data = np.transpose(train_data,axes=[1,0,2])
@@ -147,7 +148,7 @@ reg_loss = 0
 for tf_var in tf.trainable_variables():
     reg_loss += tf.reduce_mean(tf.nn.l2_loss(tf_var))
         
-tot_loss = reconstruct_loss + args.w_reg*reg_loss + args.a_reg*k_loss
+tot_loss = reconstruct_loss + args.w_l2*reg_loss + args.w_align*k_loss
 
 # Calculate and clip gradients
 gradients = tf.gradients(tot_loss, parameters)
@@ -246,9 +247,9 @@ pred, pred_loss, ts_code, ts_code_K = sess.run([dec_out, reconstruct_loss, code,
 print('Test loss: %.3f'%(np.mean((pred-test_data)**2)))
 
 # reverse transformations
-pred = np.reshape(pred, (test_data_orig.shape[1], test_data_orig.shape[0], test_data_orig.shape[2]))
+pred = np.reshape(pred, (test_data_shaped.shape[1], test_data_shaped.shape[0], test_data_shaped.shape[2]))
 pred = np.transpose(pred,axes=[1,0,2])
-test_data = test_data_orig
+test_data = test_data_shaped
 
 if np.min(train_len) < np.max(train_len) and args.interp_on:
     print('-- Reverse Interpolation --')
@@ -297,11 +298,12 @@ acc, f1 = classify_with_knn(tr_code, train_labels[:, 0], ts_code, test_labels[:,
 print('kNN -- acc: %.3f, F1: %.3f'%(acc, f1))
 
 # anomaly detection
-anomaly_detect(test_data, pred, test_len, test_labels, 0.3, plot_on)
+if anomaly_detect_on:
+    anomaly_detect(test_data, pred, test_len, test_labels, 0.2, plot_on)
 
 # dim reduction plots
 if dim_red:
-    dim_reduction_plot(ts_code, test_labels)
+    dim_reduction_plot(ts_code, test_labels[:, 0])
 
 #train_writer.close()
 sess.close()

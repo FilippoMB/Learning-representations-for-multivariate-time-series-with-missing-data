@@ -9,17 +9,21 @@ def dim_reduction_plot(data, label):
     import matplotlib.pyplot as plt
     import brewer2mpl
     bmap = brewer2mpl.get_map('Set1', 'qualitative', 3).mpl_colormap
+    colors = brewer2mpl.get_map('Set1', 'qualitative', 3).mpl_colors
   
     # PCA
     PCA_model = TruncatedSVD(n_components=3).fit(data)
     data_PCA = PCA_model.transform(data)
-    plt.figure(figsize=(3.5,3.5))
-    plt.scatter(data_PCA[:,0],data_PCA[:,1],s=80,c=label,marker='.',linewidths=0.15,cmap=bmap, alpha=0.5,edgecolor='black')
-    plt.title('PCA')
+    plt.figure(figsize=(3,3))
+#    plt.scatter(data_PCA[:,0],data_PCA[:,1],s=80,c=label,marker='.',linewidths=0.15,cmap=bmap, alpha=0.5,edgecolor='black')
+    plt.scatter(data_PCA[label==1,0],data_PCA[label==1,1],s=40,c=colors[1],marker='^',linewidths=0.15,cmap=bmap, alpha=0.5,edgecolor='black',label='light infection')
+    plt.scatter(data_PCA[label==0,0],data_PCA[label==0,1],s=100,c=colors[0],marker='.',linewidths=0.15,cmap=bmap, alpha=0.5,edgecolor='black',label='severe infection')   
+#    plt.title('PCA')
     plt.gca().axes.get_xaxis().set_ticks([])
     plt.gca().axes.get_yaxis().set_ticks([])
     for spine in  plt.gca().axes.spines.values():
-        spine.set_edgecolor('#565656')
+        spine.set_edgecolor('#363636')
+    plt.legend(loc='best')
     plt.savefig('../logs/PCA.pdf',format='pdf')
     plt.show()
   

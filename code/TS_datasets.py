@@ -325,13 +325,18 @@ def getJapDataFull():
         valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
         test_data, test_labels, test_len[:,0], test_targets, K_ts)
 
-def getJapDataMiss(kernel='TCK', inp='zero', miss=0):
+def getJapDataMiss(kernel='TCK', inp='zero', miss=0, mask=0):
     jap_data = scipy.io.loadmat('../dataset/JapaneseVowels/TCK_data_'+str(miss)+'.mat')
     
     # ------ train -------
     train_data = jap_data['X']
     train_data = np.transpose(train_data,axes=[1,0,2]) # time_major=True
     train_len = jap_data['X_len']
+    if mask:
+        M_train = np.ones_like(train_data)
+        M_train[np.isnan(train_data)] = 0
+        train_data_orig = jap_data['X_orig']
+        train_data_orig = np.transpose(train_data_orig,axes=[1,0,2]) # time_major=True
     
     if inp=='zero': # substitute NaN with 0
         train_data[np.isnan(train_data)] = 0 
@@ -359,7 +364,12 @@ def getJapDataMiss(kernel='TCK', inp='zero', miss=0):
     test_data = jap_data['Xte'] 
     test_data = np.transpose(test_data,axes=[1,0,2]) # time_major=True
     test_len = jap_data['Xte_len']
-    
+    if mask:
+        M_test = np.ones_like(test_data)
+        M_test[np.isnan(test_data)] = 0
+        test_data_orig = jap_data['Xte_orig']
+        test_data_orig = np.transpose(test_data_orig,axes=[1,0,2]) # time_major=True
+        
     if inp == 'zero': # substitute NaN with 0
         test_data[np.isnan(test_data)] = 0 
     
@@ -398,12 +408,22 @@ def getJapDataMiss(kernel='TCK', inp='zero', miss=0):
         K_vs = ideal_kernel(valid_labels)
         K_ts = ideal_kernel(test_labels)
     
-    return (train_data, train_labels, train_len[:,0], train_targets, K_tr,
-        valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
-        test_data, test_labels, test_len[:,0], test_targets, K_ts)
+    if mask:
+        M_valid = M_train
+        valid_data_orig = train_data_orig
+        return (train_data, train_labels, train_len[:,0], train_targets, K_tr,
+            valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
+            test_data, test_labels, test_len[:,0], test_targets, K_ts,
+            M_train, M_valid, M_test,
+            train_data_orig, valid_data_orig, test_data_orig)
+               
+    else:    
+        return (train_data, train_labels, train_len[:,0], train_targets, K_tr,
+            valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
+            test_data, test_labels, test_len[:,0], test_targets, K_ts)
     
 # ========== Blood data (OCC) ==========
-def getBlood(inp='last'):
+def getBlood(inp='zero'):
     blood_data = scipy.io.loadmat('../dataset/Blood/Blood_LPS.mat')
     train_data = blood_data['X']
     train_labels = blood_data['Y']
@@ -467,7 +487,7 @@ def getBlood(inp='last'):
     
 # ========== AF data ==========
 def getAF(inp='zero'):
-    af_data = scipy.io.loadmat('../dataset/AF/TCK_AF_30_2v_50m.mat')
+    af_data = scipy.io.loadmat('../dataset/AF/TCK_AF_30_50m.mat')
     train_data = af_data['X']
     train_labels = af_data['Y']
     train_len = af_data['X_len']
