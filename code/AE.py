@@ -12,10 +12,10 @@ anomaly_detect_on = 1
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='AF', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--code_size", default=8, help="size of the code", type=int)
+parser.add_argument("--code_size", default=10, help="size of the code", type=int)
 parser.add_argument("--w_l2", default=0.0, help="weight of the regularization in the loss function", type=float)
-parser.add_argument("--w_align", default=0, help="weight of the kernel alignment", type=float)
-parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
+parser.add_argument("--w_align", default=0.2, help="weight of the kernel alignment", type=float)
+parser.add_argument("--num_epochs", default=3000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
@@ -24,7 +24,7 @@ parser.add_argument("--tied_weights", dest='tied_weights', action='store_true', 
 parser.add_argument("--lin_dec", dest='lin_dec', action='store_true', help="use decoder with linear activations")
 parser.add_argument("--interp_on", dest='interp_on', action='store_true', help="interpolate time series to match the length of the longest one")
 parser.set_defaults(tied_weights=False)
-parser.set_defaults(lin_dec=False)
+parser.set_defaults(lin_dec=True)
 parser.set_defaults(interp_on=False)
 args = parser.parse_args()
 print(args)
@@ -299,7 +299,8 @@ print('kNN -- acc: %.3f, F1: %.3f'%(acc, f1))
 
 # anomaly detection
 if anomaly_detect_on:
-    anomaly_detect(test_data, pred, test_len, test_labels, 0.2, plot_on)
+    auc=anomaly_detect(test_data, pred, test_len, test_labels, plot_on)
+    print('Anomaly detect -- AUC: %.3f'%(auc))
 
 # dim reduction plots
 if dim_red:

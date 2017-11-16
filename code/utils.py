@@ -118,8 +118,8 @@ def mse_and_corr(targets, preds, targets_len):
     
     return tot_mse, tot_corr
 
-def anomaly_detect(targets, preds, targets_len, target_labels, threshold=0.5, plot_on=False):
-    from sklearn.metrics import f1_score, accuracy_score, roc_auc_score
+def anomaly_detect(targets, preds, targets_len, target_labels, plot_on=False):
+    from sklearn.metrics import roc_auc_score
     
     mse_list = []
     for i in range(targets.shape[1]):
@@ -128,13 +128,8 @@ def anomaly_detect(targets, preds, targets_len, target_labels, threshold=0.5, pl
         pred_i = preds[:len_i,i,:]
         err_i = np.mean((test_data_i-pred_i)**2)
         mse_list.append(err_i)
-    mean_err = np.mean(mse_list)
-    pred_labels = np.where(mse_list >= mean_err*threshold,1,0)
-        
-    F1 = f1_score(target_labels, pred_labels, average='binary')
-    acc = accuracy_score(target_labels, pred_labels)
-    auc = roc_auc_score(target_labels, pred_labels)
-    print('Anomaly detection -- acc: %.3f, F1: %.3f, AUC: %.3f'%(acc,F1,auc))
+
+    auc = roc_auc_score(target_labels, mse_list, average=None)
     
     if plot_on:
         
@@ -154,7 +149,6 @@ def anomaly_detect(targets, preds, targets_len, target_labels, threshold=0.5, pl
         plt.title('Outlier detection')        
         plt.bar(np.arange(n_class0), mse_list[:n_class0], color=colors[0], edgecolor='none',width=1.0,label='nominal')
         plt.bar(np.arange(n_class0,len(mse_list)), mse_list[n_class0:], color=colors[1], edgecolor='none',width=1.0,label='outlier') 
-        plt.plot([0,n_class0+n_class1-1], [mean_err*threshold, mean_err*threshold], 'k--', label='threshold', linewidth=1.5)
         plt.gca().axes.get_xaxis().set_ticks([])
         plt.legend(loc='best', fontsize=10)       
         for spine in  plt.gca().axes.spines.values():
@@ -162,7 +156,7 @@ def anomaly_detect(targets, preds, targets_len, target_labels, threshold=0.5, pl
         plt.savefig('../logs/Anomaly_detect.pdf',format='pdf')
         plt.show()
         
-    return acc, F1
+    return auc
     
 
 def corr2_coeff(A,B):

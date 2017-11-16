@@ -142,7 +142,8 @@ print('kNN -- acc: %.3f, F1: %.3f'%(acc, f1))
 
 # anomaly detection
 if anomaly_detect_on:
-    anomaly_detect(test_data, ts_pred, test_len, test_labels, 0.2, plot_on)
+    auc = anomaly_detect(test_data, ts_pred, test_len, test_labels, plot_on)
+    print('Anomaly detect -- AUC: %.3f'%(auc))
 
 # plot reconstruction
 if plot_on:

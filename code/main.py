@@ -8,6 +8,7 @@ import argparse, sys
 from utils import classify_with_knn, mse_and_corr, anomaly_detect
 
 plot_on = 0
+anomaly_detect_on = 1
 _seed = None
 np.random.seed(_seed)
 
@@ -21,7 +22,7 @@ parser.add_argument("--decoder_init", default='all', help="init decoder with las
 parser.add_argument("--sched_prob", default=1.0, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
-parser.add_argument("--w_align", default=0.2, help="kernel alignment weight", type=float)
+parser.add_argument("--w_align", default=0.0, help="kernel alignment weight", type=float)
 parser.add_argument("--w_l2", default=0.0, help="l2 norm regularization weight", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
@@ -288,7 +289,9 @@ test_mse, test_corr = mse_and_corr(test_targets, inf_outs, test_len)
 print('Test MSE=%.3f, Corr=%.3f'%(test_mse, test_corr))
 
 # anomaly detect
-anomaly_detect(test_targets, inf_outs, test_len, test_labels, 0.3, plot_on)
+if anomaly_detect_on:
+    auc = anomaly_detect(test_targets, inf_outs, test_len, test_labels, plot_on)
+    print('Anomaly detect -- AUC: %.3f'%(auc))
 
 # kNN classification on the codes
 fdtr = {G.encoder_inputs: train_data,

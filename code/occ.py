@@ -101,43 +101,26 @@ if __name__ == "__main__":
 #    x, y = get_data()
 #    x_tr, y_tr, x_te, y_te = get_problem_instance(x, y)
     x_tr, y_tr, x_te, y_te = get_original_data()
-
-    start_time = time.time()
-    # fit the model (with fixed hyper-parameters)
-    clf = svm.OneClassSVM(nu=0.5, kernel="rbf", gamma=0.7)
+   
+    # ------ OCSVM -------
+    clf = svm.OneClassSVM(nu=0.5, kernel="rbf", gamma='auto') #If gamma is ‘auto’ then 1/n_features will be used.
     clf.fit(x_tr)
 
     # prediction
     y_tr_pred = clf.predict(x_tr)
     y_te_pred = clf.predict(x_te)
     y_te_scores = clf.decision_function(x_te)
-
-    print("Running time: %.6f sec" % (time.time() - start_time))
-
-    # performance evaluation
-    acc_tr = accuracy_score(y_tr, y_tr_pred)
-    acc_te = accuracy_score(y_te, y_te_pred)
-
-    print("F1: " + str(f1_score(y_te, y_te_pred)))
-    print("ACC: " + str(acc_te))
-    print("AUC: " + str(roc_auc_score(y_te, y_te_scores)))
+    print("OCSVM -- AUC: " + str(roc_auc_score(y_te, y_te_scores)))  
+    
     print(classification_report(y_te, y_te_pred, target_names=['class -1', 'class 1']))
 
-    outliers_fraction = 0.5
-    clf_if = IsolationForest(contamination=outliers_fraction, random_state=np.random.RandomState())
+    # ------ IsolationForest -----
+    clf_if = IsolationForest(contamination=0.5, random_state=np.random.RandomState())
     clf_if.fit(x_tr)
-
-    y_tr_scores = clf_if.decision_function(x_tr)
-    y_te_scores = clf_if.decision_function(x_te)
+   
     y_tr_pred = clf_if.predict(x_tr)
     y_te_pred = clf_if.predict(x_te)
-
-    # performance evaluation
-    acc_tr = accuracy_score(y_tr, y_tr_pred)
-    acc_te = accuracy_score(y_te, y_te_pred)
-
-    print("Isolation Forest")
-    print("F1: " + str(f1_score(y_te, y_te_pred)))
-    print("ACC: " + str(acc_te))
-    print("AUC: " + str(roc_auc_score(y_te, y_te_scores)))
+    y_te_scores = clf_if.decision_function(x_te)
+    print("IForest -- AUC: " + str(roc_auc_score(y_te, y_te_scores)))  
+    
     print(classification_report(y_te, y_te_pred, target_names=['class -1', 'class 1']))
