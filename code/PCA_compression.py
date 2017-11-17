@@ -13,7 +13,7 @@ anomaly_detect_on = 1
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='AF', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--num_comp", default=8, help="number of PCA components", type=int)
+parser.add_argument("--num_comp", default=10, help="number of PCA components", type=int)
 args = parser.parse_args()
 print(args)
 

@@ -12,9 +12,9 @@ anomaly_detect_on = 0
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='JAPm', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--code_size", default=20, help="size of the code", type=int)
+parser.add_argument("--code_size", default=10, help="size of the code", type=int)
 parser.add_argument("--w_reg", default=0.001, help="weight of the regularization in the loss function", type=float)
-parser.add_argument("--a_reg", default=0.0, help="weight of the kernel alignment", type=float)
+parser.add_argument("--a_reg", default=0.1, help="weight of the kernel alignment", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
@@ -70,7 +70,7 @@ else:
         valid_data, _, valid_len, _, K_vs,
         test_data_shaped, test_labels, test_len, _, K_ts,
         M_train, M_valid, M_test,
-        train_data_orig, valid_data_orig, test_data_orig) = getData(kernel='TCK', inp='zero', miss=0.51, mask=1)
+        train_data_orig, valid_data_orig, test_data_orig) = getData(kernel='TCK', inp='last', miss=0.51, mask=1)
        
 # interpolation
 if np.min(train_len) < np.max(train_len) and args.interp_on:
@@ -152,7 +152,8 @@ k_loss = tf.norm(code_K_norm - prior_K_norm, ord='fro', axis=[-2,-1])
 # reconstruction loss    
 parameters = tf.trainable_variables()
 optimizer = tf.train.AdamOptimizer(args.learning_rate)
-reconstruct_loss = tf.losses.mean_squared_error( labels=tf.multiply(dec_out,missing_mask), predictions=tf.multiply(encoder_inputs,missing_mask) )
+#reconstruct_loss = tf.losses.mean_squared_error( labels=tf.multiply(dec_out,missing_mask), predictions=tf.multiply(encoder_inputs,missing_mask) )
+reconstruct_loss = tf.reduce_sum((dec_out*missing_mask - encoder_inputs*missing_mask)**2)/tf.reduce_sum(missing_mask) 
 
 # L2 loss
 reg_loss = 0
@@ -279,10 +280,13 @@ if plot_on:
     
     # plot the reconstruction of a random time series
     plot_idx1 = np.random.randint(low=0,high=test_data.shape[1])
-    target = test_data[:,plot_idx1,:]
+    target_imp = test_data[:,plot_idx1,:]
+    target_true = test_data_orig[:,plot_idx1,:]
     ts_out = ts_pred[:,plot_idx1,:]
-    plt.plot(target.flatten(), label='target')
-    plt.plot(ts_out.flatten(), label='ts_pred')
+    mask = 1-M_test[plot_idx1,:]
+    plt.plot(target_imp.flatten()*mask, label='inp')
+    plt.plot(target_true.flatten()*mask, label='true')
+    plt.plot(ts_out.flatten()*mask, label='ts_pred')
     plt.legend(loc='best')
     plt.title('Prediction of a random MTS variable')
     plt.show()  
@@ -306,16 +310,18 @@ if plot_on:
     plt.gca().axes.get_yaxis().set_ticks([])
     plt.show()
     
+    
+    
 # MSE and corr
-test_mse, test_corr = mse_and_corr(test_data, ts_pred, test_len)
-print('Test inp vs pred: MSE=%.3f, Corr=%.3f'%(test_mse, test_corr))
+test_mse, test_corr = mse_and_corr(ts_pred, test_data_orig, test_len)
+print('TS: pred vs orig: MSE=%.3f, Corr=%.3f'%(test_mse, test_corr))
 test_mse2, test_corr2 = mse_and_corr(test_data, test_data_orig, test_len)
-print('Test inp vs orig: MSE=%.3f, Corr=%.3f'%(test_mse2, test_corr2))
+print('TS: inp vs orig: MSE=%.3f, Corr=%.3f'%(test_mse2, test_corr2))
 
-train_mse, train_corr = mse_and_corr(train_data, tr_pred, train_len)
-print('Train inp vs pred: MSE=%.3f, Corr=%.3f'%(train_mse, train_corr))
+train_mse, train_corr = mse_and_corr(tr_pred, train_data_orig, train_len)
+print('TR: pred vs orig: MSE=%.3f, Corr=%.3f'%(train_mse, train_corr))
 train_mse2, train_corr2 = mse_and_corr(train_data, train_data_orig, train_len)
-print('Train inp vs orig: MSE=%.3f, Corr=%.3f'%(train_mse2, train_corr2))
+print('TR: inp vs orig: MSE=%.3f, Corr=%.3f'%(train_mse2, train_corr2))
 
 # kNN classification on the codes
 acc, f1 = classify_with_knn(tr_code, train_labels[:, 0], ts_code, test_labels[:, 0], k=3)
