@@ -12,10 +12,10 @@ anomaly_detect_on = 1
 # parse input data
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset_id", default='AF', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--code_size", default=10, help="size of the code", type=int)
+parser.add_argument("--code_size", default=15, help="size of the code", type=int)
 parser.add_argument("--w_l2", default=0.0, help="weight of the regularization in the loss function", type=float)
-parser.add_argument("--w_align", default=0.0, help="weight of the kernel alignment", type=float)
-parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
+parser.add_argument("--w_align", default=0.2, help="weight of the kernel alignment", type=float)
+parser.add_argument("--num_epochs", default=2500, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
@@ -146,7 +146,8 @@ reconstruct_loss = tf.losses.mean_squared_error(labels=dec_out, predictions=enco
 # L2 loss
 reg_loss = 0
 for tf_var in tf.trainable_variables():
-    reg_loss += tf.reduce_mean(tf.nn.l2_loss(tf_var))
+    if not ("Bias" in tf_var.name or "noreg" in tf_var.name):
+        reg_loss += tf.nn.l2_loss(tf_var)
         
 tot_loss = reconstruct_loss + args.w_l2*reg_loss + args.w_align*k_loss
 

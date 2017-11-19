@@ -2,19 +2,18 @@ import tensorflow as tf
 import argparse, sys
 from TS_datasets import *
 import numpy as np
-from utils import classify_with_knn, interp_data, mse_and_corr, dim_reduction_plot, anomaly_detect
+from utils import classify_with_knn, interp_data, mse_and_corr, dim_reduction_plot
 import math, time
 
 dim_red = 0
 plot_on = 1
-anomaly_detect_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='JAPm', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--dataset_id", default='LIBm', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
 parser.add_argument("--code_size", default=10, help="size of the code", type=int)
-parser.add_argument("--w_reg", default=0.001, help="weight of the regularization in the loss function", type=float)
-parser.add_argument("--a_reg", default=0.1, help="weight of the kernel alignment", type=float)
+parser.add_argument("--w_reg", default=0.0, help="weight of the regularization in the loss function", type=float)
+parser.add_argument("--a_reg", default=0.0, help="weight of the kernel alignment", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
@@ -47,6 +46,8 @@ elif args.dataset_id == 'CHAR':
     getData = getCharDataFull
 elif args.dataset_id == 'LIB':        
     getData = getLibras
+elif args.dataset_id == 'LIBm':        
+    getData = getLibDataMiss
 elif args.dataset_id == 'WAF':        
     getData = getWafer
 elif args.dataset_id == 'SIN':        
@@ -70,7 +71,7 @@ else:
         valid_data, _, valid_len, _, K_vs,
         test_data_shaped, test_labels, test_len, _, K_ts,
         M_train, M_valid, M_test,
-        train_data_orig, valid_data_orig, test_data_orig) = getData(kernel='TCK', inp='last', miss=0.51, mask=1)
+        train_data_orig, valid_data_orig, test_data_orig) = getData(inp='zero', mask=1)
        
 # interpolation
 if np.min(train_len) < np.max(train_len) and args.interp_on:
@@ -158,7 +159,8 @@ reconstruct_loss = tf.reduce_sum((dec_out*missing_mask - encoder_inputs*missing_
 # L2 loss
 reg_loss = 0
 for tf_var in tf.trainable_variables():
-    reg_loss += tf.reduce_mean(tf.nn.l2_loss(tf_var))
+    if not ("Bias" in tf_var.name or "noreg" in tf_var.name):
+        reg_loss += tf.nn.l2_loss(tf_var)
         
 tot_loss = reconstruct_loss + args.w_reg*reg_loss + args.a_reg*k_loss
 
@@ -261,7 +263,7 @@ tr_pred, tr_code = sess.run([dec_out, code], {encoder_inputs: train_data})
 ts_pred, ts_code, ts_code_K = sess.run([dec_out, code, code_K], {encoder_inputs: test_data})
 print('Test rec loss: %.3f'%(np.mean((ts_pred-test_data)**2)))
 
-# reverse transformations
+# reverse shape transformations
 ts_pred = np.reshape(ts_pred, (test_data_shaped.shape[1], test_data_shaped.shape[0], test_data_shaped.shape[2]))
 ts_pred = np.transpose(ts_pred,axes=[1,0,2])
 test_data = test_data_shaped
@@ -276,7 +278,6 @@ if np.min(train_len) < np.max(train_len) and args.interp_on:
 if plot_on:
     
     import matplotlib.pyplot as plt
-    import pylab
     
     # plot the reconstruction of a random time series
     plot_idx1 = np.random.randint(low=0,high=test_data.shape[1])
@@ -286,12 +287,13 @@ if plot_on:
     mask = 1-M_test[plot_idx1,:]
     plt.plot(target_imp.flatten()*mask, label='inp')
     plt.plot(target_true.flatten()*mask, label='true')
-    plt.plot(ts_out.flatten()*mask, label='ts_pred')
+    plt.plot(ts_out.flatten()*mask, label='AE_pred')
     plt.legend(loc='best')
     plt.title('Prediction of a random MTS variable')
     plt.show()  
     np.savetxt('../logs/AE_pred',ts_out)
-        
+    
+    import pylab    
     fig = plt.figure()
     ax = fig.add_subplot(111)
     cax = ax.matshow(K_ts,cmap=pylab.cm.YlGnBu)  #'binary_r'
@@ -314,12 +316,12 @@ if plot_on:
     
 # MSE and corr
 test_mse, test_corr = mse_and_corr(ts_pred, test_data_orig, test_len)
-print('TS: pred vs orig: MSE=%.3f, Corr=%.3f'%(test_mse, test_corr))
+print('TS: AE_pred vs orig: MSE=%.3f, Corr=%.3f'%(test_mse, test_corr))
 test_mse2, test_corr2 = mse_and_corr(test_data, test_data_orig, test_len)
 print('TS: inp vs orig: MSE=%.3f, Corr=%.3f'%(test_mse2, test_corr2))
 
 train_mse, train_corr = mse_and_corr(tr_pred, train_data_orig, train_len)
-print('TR: pred vs orig: MSE=%.3f, Corr=%.3f'%(train_mse, train_corr))
+print('TR: AE_pred vs orig: MSE=%.3f, Corr=%.3f'%(train_mse, train_corr))
 train_mse2, train_corr2 = mse_and_corr(train_data, train_data_orig, train_len)
 print('TR: inp vs orig: MSE=%.3f, Corr=%.3f'%(train_mse2, train_corr2))
 
@@ -327,9 +329,6 @@ print('TR: inp vs orig: MSE=%.3f, Corr=%.3f'%(train_mse2, train_corr2))
 acc, f1 = classify_with_knn(tr_code, train_labels[:, 0], ts_code, test_labels[:, 0], k=3)
 print('kNN -- acc: %.3f, F1: %.3f'%(acc, f1))
 
-# anomaly detection
-if anomaly_detect_on:
-    anomaly_detect(test_data, ts_pred, test_len, test_labels, 0.3, plot_on)
 
 # dim reduction plots
 if dim_red:

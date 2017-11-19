@@ -283,9 +283,8 @@ class s2s_ts_Model():
             # L2 norm loss
             self.reg_loss = 0
             for tf_var in tf.trainable_variables():
-                self.reg_loss += tf.reduce_mean(tf.nn.l2_loss(tf_var))
-#                if not ("Bias" in tf_var.name or "Output_" in tf_var.name):
-#                    reg_loss += tf.reduce_mean(tf.nn.l2_loss(tf_var))
+                if not ("Bias" in tf_var.name or "noreg" in tf_var.name):
+                    self.reg_loss += tf.nn.l2_loss(tf_var)
                      
             # teacher loss
             self.teach_loss = tf.losses.mean_squared_error(labels=decoder_train_outputs, predictions=self.teach_outputs)

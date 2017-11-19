@@ -103,7 +103,7 @@ if __name__ == "__main__":
     x_tr, y_tr, x_te, y_te = get_original_data()
    
     # ------ OCSVM -------
-    clf = svm.OneClassSVM(nu=0.5, kernel="rbf", gamma='auto') #If gamma is ‘auto’ then 1/n_features will be used.
+    clf = svm.OneClassSVM(nu=0.5, kernel="rbf", gamma=0.7) #If gamma is ‘auto’ then 1/n_features will be used.
     clf.fit(x_tr)
 
     # prediction

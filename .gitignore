@@ -6,4 +6,3 @@ docker/
 docker-compose.yml
 logs/
 models/
-dataset/
