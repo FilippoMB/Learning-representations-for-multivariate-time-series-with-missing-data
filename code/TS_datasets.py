@@ -423,19 +423,22 @@ def getJapDataMiss(kernel='TCK', inp='zero', miss=0, mask=0):
             test_data, test_labels, test_len[:,0], test_targets, K_ts)
 
 
-def getLibDataMiss(inp='zero', mask=0):
-    mts_data = scipy.io.loadmat('../dataset/Wafer/WAF_miss05.mat')
+# ============== IMPUTATION TEST ================
+def getImpTestData(data_name = 'Libras/LIB_miss05',inp='zero'):
+    mts_data = scipy.io.loadmat('../dataset/'+data_name+'.mat')
     
     # ------ train -------
     train_data = mts_data['X']
     train_data = np.transpose(train_data,axes=[1,0,2]) # time_major=True
     train_len = mts_data['X_len']
-    if mask:
-        M_train = np.ones_like(train_data)
-        M_train[np.isnan(train_data)] = 0
-        train_data_orig = mts_data['X_orig']
-        train_data_orig = np.transpose(train_data_orig,axes=[1,0,2]) # time_major=True
-    
+    train_labels = np.asarray(mts_data['Y'])
+    train_data_orig = mts_data['X_orig']
+    train_data_orig = np.transpose(train_data_orig,axes=[1,0,2]) # time_major=True
+    K_tr = mts_data['Ktrtr']
+    M_train = np.ones_like(train_data)
+    M_train[np.isnan(train_data)] = 0
+
+    # imputation
     if inp=='zero': # substitute NaN with 0
         train_data[np.isnan(train_data)] = 0 
     
@@ -456,18 +459,19 @@ def getLibDataMiss(inp='zero', mask=0):
             train_data[:,:,i] = imp.fit_transform(train_data[:,:,i])
             print(train_data[:,:,i])
            
-    train_labels = np.asarray(mts_data['Y'])
-    
+        
     # ----- test -------
     test_data = mts_data['Xte'] 
     test_data = np.transpose(test_data,axes=[1,0,2]) # time_major=True
     test_len = mts_data['Xte_len']
-    if mask:
-        M_test = np.ones_like(test_data)
-        M_test[np.isnan(test_data)] = 0
-        test_data_orig = mts_data['Xte_orig']
-        test_data_orig = np.transpose(test_data_orig,axes=[1,0,2]) # time_major=True
+    test_labels = np.asarray(mts_data['Yte'])
+    test_data_orig = mts_data['Xte_orig']
+    test_data_orig = np.transpose(test_data_orig,axes=[1,0,2]) # time_major=True
+    K_ts = mts_data['Ktete']
+    M_test = np.ones_like(test_data)
+    M_test[np.isnan(test_data)] = 0      
         
+    # imputation        
     if inp == 'zero': # substitute NaN with 0
         test_data[np.isnan(test_data)] = 0 
     
@@ -485,38 +489,28 @@ def getLibDataMiss(inp='zero', mask=0):
         for i in range(test_data.shape[2]):
             test_data[:,:,i] = imp.fit_transform(test_data[:,:,i])
         
-    test_labels = np.asarray(mts_data['Yte'])
-                
+                    
     # valid == train   
     valid_data = train_data
     valid_labels = train_labels
     valid_len = train_len
+    M_valid = M_train
+    valid_data_orig = train_data_orig
+    K_vs = K_tr
     
     # target outputs
     train_targets = train_data
     valid_targets = valid_data
     test_targets = test_data    
     
-    K_tr = mts_data['Ktrtr']
-    K_vs = K_tr
-    K_ts = mts_data['Ktete']
-
     
-    if mask:
-        M_valid = M_train
-        valid_data_orig = train_data_orig
-        return (train_data, train_labels, train_len[:,0], train_targets, K_tr,
-            valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
-            test_data, test_labels, test_len[:,0], test_targets, K_ts,
-            M_train, M_valid, M_test,
-            train_data_orig, valid_data_orig, test_data_orig)
+    return (train_data, train_labels, train_len[:,0], train_targets, K_tr,
+        valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
+        test_data, test_labels, test_len[:,0], test_targets, K_ts,
+        M_train, M_valid, M_test,
+        train_data_orig, valid_data_orig, test_data_orig)
                
-    else:    
-        return (train_data, train_labels, train_len[:,0], train_targets, K_tr,
-            valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
-            test_data, test_labels, test_len[:,0], test_targets, K_ts)
 
-    
 # ========== Blood data (OCC) ==========
 def getBlood(inp='zero'):
     blood_data = scipy.io.loadmat('../dataset/Blood/Blood3.mat')
