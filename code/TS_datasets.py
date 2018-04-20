@@ -513,15 +513,17 @@ def getImpTestData(data_name = 'Libras/LIB_miss05',inp='zero'):
 
 # ========== Blood data (OCC) ==========
 def getBlood(inp='zero'):
-    blood_data = scipy.io.loadmat('../dataset/Blood/Blood3.mat')
+    blood_data = scipy.io.loadmat('../dataset/Blood/Blood_LPS.mat')
     train_data = blood_data['X']
     train_labels = blood_data['Y']
     train_len = blood_data['X_len']
     test_data = blood_data['Xte']
     test_labels = blood_data['Yte']
     test_len = blood_data['Xte_len']
-    K_tr = blood_data['Ktrtr']
-    K_ts = blood_data['Ktete']
+    K_tr = blood_data['Ktrtr'] + ideal_kernel(train_labels)
+    K_ts = blood_data['Ktete'] + ideal_kernel(test_labels)
+#    K_tr = ideal_kernel(train_labels)
+#    K_ts = ideal_kernel(test_labels)
     K_tr = (K_tr-np.amin(K_tr))/(np.amax(K_tr)-np.amin(K_tr))
     K_ts = (K_ts-np.amin(K_ts))/(np.amax(K_ts)-np.amin(K_ts))
     

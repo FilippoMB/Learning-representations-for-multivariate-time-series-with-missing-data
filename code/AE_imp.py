@@ -6,7 +6,7 @@ from utils import classify_with_knn, interp_data, mse_and_corr, dim_reduction_pl
 import math, time
 
 dim_red = 0
-plot_on = 1
+plot_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
