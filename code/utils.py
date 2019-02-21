@@ -1,32 +1,31 @@
 from sklearn.decomposition import TruncatedSVD
+
 import numpy as np
 from scipy import interpolate
-import seaborn as sns
-import matplotlib.pyplot as plt
-import brewer2mpl
 
 
 def dim_reduction_plot(data, label):
-      
+    
+    import matplotlib.pyplot as plt
+    import brewer2mpl
+    bmap = brewer2mpl.get_map('Set1', 'qualitative', 3).mpl_colormap
+    colors = brewer2mpl.get_map('Set1', 'qualitative', 3).mpl_colors
+  
     # PCA
     PCA_model = TruncatedSVD(n_components=3).fit(data)
     data_PCA = PCA_model.transform(data)
-    
-    plot_clusters(data_PCA,label,['infected','not infected'])
-    
-#    plt.figure(figsize=(3,3))
-##    plt.scatter(data_PCA[:,0],data_PCA[:,1],s=80,c=label,marker='.',linewidths=0.15,cmap=bmap, alpha=0.5,edgecolor='black')
-#    plt.scatter(data_PCA[label==1,0],data_PCA[label==1,1],s=40,c=colors[1],marker='^',linewidths=0.15,cmap=bmap, alpha=0.5,edgecolor='black',label='not infected')
-#    plt.scatter(data_PCA[label==0,0],data_PCA[label==0,1],s=100,c=colors[0],marker='.',linewidths=0.15,cmap=bmap, alpha=0.5,edgecolor='black',label='infected')   
-##    plt.title('PCA')
-#    plt.gca().axes.get_xaxis().set_ticks([])
-#    plt.gca().axes.get_yaxis().set_ticks([])
-#    for spine in  plt.gca().axes.spines.values():
-#        spine.set_edgecolor('#363636')
-##    plt.legend(loc='best', numpoints=1)
-#    plt.legend(loc='best', shadow=True, fancybox=True, numpoints=1)
-#    plt.savefig('../logs/PCA.pdf',format='pdf')
-#    plt.show()
+    plt.figure(figsize=(3,3))
+#    plt.scatter(data_PCA[:,0],data_PCA[:,1],s=80,c=label,marker='.',linewidths=0.15,cmap=bmap, alpha=0.5,edgecolor='black')
+    plt.scatter(data_PCA[label==1,0],data_PCA[label==1,1],s=40,c=colors[1],marker='^',linewidths=0.15,cmap=bmap, alpha=0.5,edgecolor='black',label='light infection')
+    plt.scatter(data_PCA[label==0,0],data_PCA[label==0,1],s=100,c=colors[0],marker='.',linewidths=0.15,cmap=bmap, alpha=0.5,edgecolor='black',label='severe infection')   
+#    plt.title('PCA')
+    plt.gca().axes.get_xaxis().set_ticks([])
+    plt.gca().axes.get_yaxis().set_ticks([])
+    for spine in  plt.gca().axes.spines.values():
+        spine.set_edgecolor('#363636')
+    plt.legend(loc='best')
+    plt.savefig('../logs/PCA.pdf',format='pdf')
+    plt.show()
   
 #    # tSNE
 #    from sklearn.manifold import TSNE
@@ -39,35 +38,6 @@ def dim_reduction_plot(data, label):
 #    plt.show()
     return
 
-def plot_clusters(data,labels,legend_names):
-        
-    clust = np.unique(labels)
-    n_clust = clust.shape[0]
-    
-    bmap = brewer2mpl.get_map('Set1', 'qualitative', 3).mpl_colormap
-    colors = brewer2mpl.get_map('Set1', 'qualitative', 3).mpl_colors
-       
-    g = sns.JointGrid(x=data[:,0], y=data[:,1], size=4)
-    
-    for i in range(n_clust):
-        
-        idx_i = labels==clust[i]
-        g.x = data[idx_i,0]
-        g.y = data[idx_i,1]
-
-        g.plot_joint(plt.scatter, marker='o', s=40, linewidths=0.15, color=colors[i], alpha=0.5,edgecolor='black',label=legend_names[i])
-        g = g.plot_marginals(sns.kdeplot, shade=True, color=colors[i])
-        
-    g.ax_joint.set_xticks([])
-    g.ax_joint.set_yticks([])
-    g.ax_joint.spines['bottom'].set_color('gray')
-    g.ax_joint.spines['left'].set_color('gray')
-    g.ax_marg_x.spines['bottom'].set_color('gray')
-    g.ax_marg_y.spines['left'].set_color('gray')
-    g.ax_joint.legend(prop={'size':8},loc='upper right', shadow=True, fancybox=True, scatterpoints=1)
-    
-    plt.savefig('../logs/PCA.pdf',format='pdf')
-    return
 
 def ideal_kernel(labels):
     K = np.zeros([labels.shape[0], labels.shape[0]])

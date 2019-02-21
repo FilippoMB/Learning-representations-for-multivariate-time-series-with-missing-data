@@ -5,18 +5,17 @@ import numpy as np
 from utils import classify_with_knn, interp_data, mse_and_corr, dim_reduction_plot, anomaly_detect
 import math, time
 
-dim_red = 1
-plot_on = 0
-anomaly_detect_on = 0
+dim_red = 0
+plot_on = 1
+anomaly_detect_on = 1
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='BLOOD', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--activ_fun", default='relu', help="type of activation function (relu, tanh, sigmoid)", type=str)
-parser.add_argument("--code_size", default=10, help="size of the code", type=int)
+parser.add_argument("--dataset_id", default='AF', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--code_size", default=15, help="size of the code", type=int)
 parser.add_argument("--w_l2", default=0.0, help="weight of the regularization in the loss function", type=float)
 parser.add_argument("--w_align", default=0.2, help="weight of the kernel alignment", type=float)
-parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
+parser.add_argument("--num_epochs", default=2500, help="number of epochs in training", type=int)
 parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
@@ -101,16 +100,6 @@ sess = tf.Session()
 encoder_inputs = tf.placeholder(shape=(None,input_length), dtype=tf.float32, name='encoder_inputs')
 prior_K = tf.placeholder(shape=(None, None), dtype=tf.float32, name='prior_K')
 
-# nonlinearity
-if args.activ_fun == 'relu':
-    activ_fun = tf.nn.relu
-elif args.activ_fun == 'sigmoid':
-    activ_fun = tf.nn.sigmoid
-elif args.activ_fun == 'tanh':
-    activ_fun = tf.nn.tanh
-else:
-    sys.exit('Invalid activation function')
-
 # encoder
 We1 = tf.Variable(tf.random_uniform((input_length, args.hidden_size), -1.0 / math.sqrt(input_length), 1.0 / math.sqrt(input_length)))
 We2 = tf.Variable(tf.random_uniform((args.hidden_size, args.code_size), -1.0 / math.sqrt(args.hidden_size), 1.0 / math.sqrt(args.hidden_size)))
@@ -118,8 +107,8 @@ We2 = tf.Variable(tf.random_uniform((args.hidden_size, args.code_size), -1.0 / m
 be1 = tf.Variable(tf.zeros([args.hidden_size]))
 be2 = tf.Variable(tf.zeros([args.code_size]))
 
-hidden_1 = activ_fun(tf.matmul(encoder_inputs, We1) + be1)
-code = activ_fun(tf.matmul(hidden_1, We2) + be2)
+hidden_1 = tf.nn.tanh(tf.matmul(encoder_inputs, We1) + be1)
+code = tf.nn.tanh(tf.matmul(hidden_1, We2) + be2)
 
 # kernel on codes
 code_K = tf.tensordot(code, tf.transpose(code), axes=1)
@@ -138,7 +127,7 @@ bd2 = tf.Variable(tf.zeros([input_length]))
 if args.lin_dec:
     hidden_2 = tf.matmul(code, Wd1) + bd1
 else:
-    hidden_2 = activ_fun(tf.matmul(code, Wd1) + bd1)
+    hidden_2 = tf.nn.tanh(tf.matmul(code, Wd1) + bd1)
 
 dec_out = tf.matmul(hidden_2, Wd2) + bd2
 
