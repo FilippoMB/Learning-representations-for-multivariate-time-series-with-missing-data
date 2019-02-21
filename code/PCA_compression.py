@@ -8,12 +8,12 @@ import matplotlib.pyplot as plt
 dim_red = 1
 plot_on = 0
 interp_on = 0
-anomaly_detect_on = 1
+anomaly_detect_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='AF', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--num_comp", default=15, help="number of PCA components", type=int)
+parser.add_argument("--dataset_id", default='TSm', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--num_comp", default=10, help="number of PCA components", type=int)
 args = parser.parse_args()
 print(args)
 
@@ -49,6 +49,14 @@ elif args.dataset_id == 'JAP':
     (train_data, train_labels, train_len, _, _,
         _, _, _, _, _,
         test_data_orig, test_labels, test_len, _, _) = getJapDataFull() 
+    
+elif args.dataset_id == 'TSm':        
+    (train_data, train_labels, train_len, _, _,
+        _, _, _, _, _,
+        test_data_orig, test_labels, test_len, _, _) = getDataMiss(ds_name='Arabic', #'JapaneseVowels' 
+                                                                      kernel='TCK', 
+                                                                      inp='zero', 
+                                                                      miss=0.8)
     
 elif args.dataset_id == 'CHAR':        
     (train_data, train_labels, train_len, _, _,

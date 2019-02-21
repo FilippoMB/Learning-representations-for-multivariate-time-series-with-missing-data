@@ -5,70 +5,77 @@ import numpy as np
 from utils import classify_with_knn, interp_data, mse_and_corr, dim_reduction_plot, anomaly_detect
 import math, time
 
-dim_red = 0
-plot_on = 1
-anomaly_detect_on = 1
+dim_red = 1
+plot_on = 0
+anomaly_detect_on = 0
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='AF', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
-parser.add_argument("--code_size", default=15, help="size of the code", type=int)
+parser.add_argument("--dataset_id", default='TSm', help="ID of the dataset (SYNTH, ECG, JAP, etc..)", type=str)
+parser.add_argument("--activ_fun", default='relu', help="type of activation function (relu, tanh, sigmoid)", type=str)
+parser.add_argument("--code_size", default=10, help="size of the code", type=int)
 parser.add_argument("--w_l2", default=0.0, help="weight of the regularization in the loss function", type=float)
-parser.add_argument("--w_align", default=0.2, help="weight of the kernel alignment", type=float)
-parser.add_argument("--num_epochs", default=2500, help="number of epochs in training", type=int)
-parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
+parser.add_argument("--w_align", default=0.0, help="weight of the kernel alignment", type=float)
+parser.add_argument("--num_epochs", default=1000, help="number of epochs in training", type=int)
+parser.add_argument("--batch_size", default=64, help="number of samples in each batch", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
-parser.add_argument("--hidden_size", default=30, help="size of the code", type=int)
+parser.add_argument("--hidden_size", default=10, help="size of the code", type=int)
 parser.add_argument("--tied_weights", dest='tied_weights', action='store_true', help="use tied weights in the decoder")
 parser.add_argument("--lin_dec", dest='lin_dec', action='store_true', help="use decoder with linear activations")
 parser.add_argument("--interp_on", dest='interp_on', action='store_true', help="interpolate time series to match the length of the longest one")
 parser.set_defaults(tied_weights=False)
-parser.set_defaults(lin_dec=False)
+parser.set_defaults(lin_dec=True)
 parser.set_defaults(interp_on=False)
 args = parser.parse_args()
 print(args)
 
 # ================= DATASET =================
 
-if args.dataset_id == 'SYNTH':
-    getData = getSynthData    
-elif args.dataset_id == 'ECG':
-    getData = getECGData
-elif args.dataset_id == 'ECG2':
-    getData = getECGDataFull       
-elif args.dataset_id == 'JAP':        
-    getData = getJapDataFull
-elif args.dataset_id == 'JAPm':        
-    getData = getJapDataMiss
-elif args.dataset_id == 'ARAB':        
-    getData = getArab
-elif args.dataset_id == 'CHAR':        
-    getData = getCharDataFull
-elif args.dataset_id == 'LIB':        
-    getData = getLibras
-elif args.dataset_id == 'WAF':        
-    getData = getWafer
-elif args.dataset_id == 'SIN':        
-    getData = getSins
-elif args.dataset_id == 'MSO':        
-    getData = getMSO
-elif args.dataset_id == 'ODE':        
-    getData = getODE
-elif args.dataset_id == 'ODE2':        
-    getData = getODE_mc
-elif args.dataset_id == 'AUS':        
-    getData = getAuslan
-elif args.dataset_id == 'BLOOD':        
-    getData = getBlood    
-elif args.dataset_id == 'AF':        
-    getData = getAF
+if args.dataset_id == 'TSm':
+    (train_data, train_labels, train_len, _, K_tr,
+     valid_data, _, valid_len, _, K_vs,
+     test_data_shaped, test_labels, test_len, _, K_ts) = getDataMiss(ds_name='Arabic', #'JapaneseVowels' 
+                                                                         kernel='TCK', 
+                                                                         inp='zero', 
+                                                                         miss=0.8)
 else:
-    sys.exit('Invalid dataset_id')
-    
-(train_data, train_labels, train_len, _, K_tr,
-        valid_data, _, valid_len, _, K_vs,
-        test_data_shaped, test_labels, test_len, _, K_ts) = getData()
+    if args.dataset_id == 'SYNTH':
+        getData = getSynthData    
+    elif args.dataset_id == 'ECG':
+        getData = getECGData
+    elif args.dataset_id == 'ECG2':
+        getData = getECGDataFull       
+    elif args.dataset_id == 'JAP':        
+        getData = getJapDataFull
+    elif args.dataset_id == 'ARAB':        
+        getData = getArab
+    elif args.dataset_id == 'CHAR':        
+        getData = getCharDataFull
+    elif args.dataset_id == 'LIB':        
+        getData = getLibras
+    elif args.dataset_id == 'WAF':        
+        getData = getWafer
+    elif args.dataset_id == 'SIN':        
+        getData = getSins
+    elif args.dataset_id == 'MSO':        
+        getData = getMSO
+    elif args.dataset_id == 'ODE':        
+        getData = getODE
+    elif args.dataset_id == 'ODE2':        
+        getData = getODE_mc
+    elif args.dataset_id == 'AUS':        
+        getData = getAuslan
+    elif args.dataset_id == 'BLOOD':        
+        getData = getBlood    
+    elif args.dataset_id == 'AF':        
+        getData = getAF
+    else:
+        sys.exit('Invalid dataset_id')
+        
+    (train_data, train_labels, train_len, _, K_tr,
+     valid_data, _, valid_len, _, K_vs,
+     test_data_shaped, test_labels, test_len, _, K_ts) = getData()
       
 # interpolation
 if np.min(train_len) < np.max(train_len) and args.interp_on:
@@ -100,6 +107,18 @@ sess = tf.Session()
 encoder_inputs = tf.placeholder(shape=(None,input_length), dtype=tf.float32, name='encoder_inputs')
 prior_K = tf.placeholder(shape=(None, None), dtype=tf.float32, name='prior_K')
 
+# nonlinearity
+if args.activ_fun == 'relu':
+    activ_fun = tf.nn.relu
+elif args.activ_fun == 'sigmoid':
+    activ_fun = tf.nn.sigmoid
+elif args.activ_fun == 'lrelu':
+    activ_fun = tf.nn.leaky_relu
+elif args.activ_fun == 'tanh':
+    activ_fun = tf.nn.tanh
+else:
+    sys.exit('Invalid activation function')
+
 # encoder
 We1 = tf.Variable(tf.random_uniform((input_length, args.hidden_size), -1.0 / math.sqrt(input_length), 1.0 / math.sqrt(input_length)))
 We2 = tf.Variable(tf.random_uniform((args.hidden_size, args.code_size), -1.0 / math.sqrt(args.hidden_size), 1.0 / math.sqrt(args.hidden_size)))
@@ -107,8 +126,8 @@ We2 = tf.Variable(tf.random_uniform((args.hidden_size, args.code_size), -1.0 / m
 be1 = tf.Variable(tf.zeros([args.hidden_size]))
 be2 = tf.Variable(tf.zeros([args.code_size]))
 
-hidden_1 = tf.nn.tanh(tf.matmul(encoder_inputs, We1) + be1)
-code = tf.nn.tanh(tf.matmul(hidden_1, We2) + be2)
+hidden_1 = activ_fun(tf.matmul(encoder_inputs, We1) + be1)
+code = activ_fun(tf.matmul(hidden_1, We2) + be2)
 
 # kernel on codes
 code_K = tf.tensordot(code, tf.transpose(code), axes=1)
@@ -127,7 +146,7 @@ bd2 = tf.Variable(tf.zeros([input_length]))
 if args.lin_dec:
     hidden_2 = tf.matmul(code, Wd1) + bd1
 else:
-    hidden_2 = tf.nn.tanh(tf.matmul(code, Wd1) + bd1)
+    hidden_2 = activ_fun(tf.matmul(code, Wd1) + bd1)
 
 dec_out = tf.matmul(hidden_2, Wd2) + bd2
 

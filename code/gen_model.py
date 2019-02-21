@@ -95,9 +95,10 @@ class s2s_ts_Model():
 #                                                              activation_fn=tf.nn.tanh)
 #                    conc_state.append(LSTMStateTuple(c=c_conc, h=h_conc))
                     lstm_conc = tf.contrib.layers.fully_connected(tf.concat((encoder_fw_state[i].h, 
-                                                                             encoder_bw_state[i].h, 
+#                                                                             encoder_bw_state[i].h, 
                                                                              encoder_fw_state[i].c, 
-                                                                             encoder_bw_state[i].c), 1),
+#                                                                             encoder_bw_state[i].c
+                                                                             ), 1),
                                                                   num_outputs=self.hidden_units*2,
                                                                   activation_fn=tf.nn.tanh)
                     conc_state.append(LSTMStateTuple(h=lstm_conc[:,:self.hidden_units], c=lstm_conc[:,self.hidden_units:]))
@@ -238,7 +239,8 @@ class s2s_ts_Model():
                                                                  self.sched_prob,
                                                                  time_major=True, 
                                                                  seed=None, 
-                                                                 next_input_layer=None)
+                                                                 #next_input_layer=None
+                                                                 )
             
             # Decoder
             sched_decoder = seq2seq.BasicDecoder(

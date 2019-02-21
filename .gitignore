@@ -6,3 +6,4 @@ docker/
 docker-compose.yml
 logs/
 models/
+dataset/Arabic/TCK_data*

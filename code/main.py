@@ -8,22 +8,22 @@ import argparse, sys
 from utils import classify_with_knn, mse_and_corr, anomaly_detect
 
 plot_on = 0
-anomaly_detect_on = 1
+anomaly_detect_on = 0
 _seed = None
 np.random.seed(_seed)
 
 # parse input data
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_id", default='AF', help="ID of the dataset", type=str)
-parser.add_argument("--cell_type", default='GRU', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
-parser.add_argument("--num_layers", default=1, help="number of stacked layers in ecoder/decoder", type=int)
+parser.add_argument("--dataset_id", default='TSm', help="ID of the dataset", type=str)
+parser.add_argument("--cell_type", default='LSTM', help="type of cell for encoder/decoder (RNN, LSTM, GRU)", type=str)
+parser.add_argument("--num_layers", default=2, help="number of stacked layers in ecoder/decoder", type=int)
 parser.add_argument("--hidden_units", default=10, help="number of hidden units in the encoder/decoder", type=int)
 parser.add_argument("--decoder_init", default='all', help="init decoder with last state of only last layer (last, zero, all)", type=str)
-parser.add_argument("--sched_prob", default=1.0, help="probability of sampling from teacher signal in scheduled sampling", type=float)
+parser.add_argument("--sched_prob", default=0.8, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
-parser.add_argument("--batch_size", default=25, help="number of samples in each batch", type=int)
-parser.add_argument("--w_align", default=0.0, help="kernel alignment weight", type=float)
-parser.add_argument("--w_l2", default=0.0, help="l2 norm regularization weight", type=float)
+parser.add_argument("--batch_size", default=32, help="number of samples in each batch", type=int)
+parser.add_argument("--w_align", default=0.1, help="kernel alignment weight", type=float)
+parser.add_argument("--w_l2", default=0.001, help="l2 norm regularization weight", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
 args = parser.parse_args()
@@ -64,10 +64,13 @@ elif args.dataset_id == 'JAP':
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
         test_data, test_labels, test_len, test_targets, _) = getJapDataFull()
 
-elif args.dataset_id == 'JAPm':        
+elif args.dataset_id == 'TSm':        
     (train_data, train_labels, train_len, train_targets, K_tr,
         valid_data, valid_labels, valid_len, valid_targets, K_vs,
-        test_data, test_labels, test_len, test_targets, _) = getJapDataMiss(kernel='TCK', inp='zero', miss=0.9)
+        test_data, test_labels, test_len, test_targets, _) = getDataMiss(ds_name='JapaneseVowels', #'Arabic' 
+                                                                         kernel='TCK', 
+                                                                         inp='zero', 
+                                                                         miss=0.8)
 
 elif args.dataset_id == 'ARAB':        
     (train_data, train_labels, train_len, train_targets, K_tr,

@@ -325,17 +325,17 @@ def getJapDataFull():
         valid_data, valid_labels, valid_len[:,0], valid_targets, K_vs,
         test_data, test_labels, test_len[:,0], test_targets, K_ts)
 
-def getJapDataMiss(kernel='TCK', inp='zero', miss=0, mask=0):
-    jap_data = scipy.io.loadmat('../dataset/JapaneseVowels/TCK_data_'+str(miss)+'.mat')
+def getDataMiss(ds_name='JapaneseVowels', kernel='TCK', inp='zero', miss=0, mask=0):
+    ts_data = scipy.io.loadmat('../dataset/'+ds_name+'/TCK_data_'+str(miss)+'.mat')
     
     # ------ train -------
-    train_data = jap_data['X']
+    train_data = ts_data['X']
     train_data = np.transpose(train_data,axes=[1,0,2]) # time_major=True
-    train_len = jap_data['X_len']
+    train_len = ts_data['X_len']
     if mask:
         M_train = np.ones_like(train_data)
         M_train[np.isnan(train_data)] = 0
-        train_data_orig = jap_data['X_orig']
+        train_data_orig = ts_data['X_orig']
         train_data_orig = np.transpose(train_data_orig,axes=[1,0,2]) # time_major=True
     
     if inp=='zero': # substitute NaN with 0
@@ -358,16 +358,16 @@ def getJapDataMiss(kernel='TCK', inp='zero', miss=0, mask=0):
             train_data[:,:,i] = imp.fit_transform(train_data[:,:,i])
             print(train_data[:,:,i])
            
-    train_labels = np.asarray(jap_data['Y'])
+    train_labels = np.asarray(ts_data['Y'])
     
     # ----- test -------
-    test_data = jap_data['Xte'] 
+    test_data = ts_data['Xte'] 
     test_data = np.transpose(test_data,axes=[1,0,2]) # time_major=True
-    test_len = jap_data['Xte_len']
+    test_len = ts_data['Xte_len']
     if mask:
         M_test = np.ones_like(test_data)
         M_test[np.isnan(test_data)] = 0
-        test_data_orig = jap_data['Xte_orig']
+        test_data_orig = ts_data['Xte_orig']
         test_data_orig = np.transpose(test_data_orig,axes=[1,0,2]) # time_major=True
         
     if inp == 'zero': # substitute NaN with 0
@@ -387,7 +387,7 @@ def getJapDataMiss(kernel='TCK', inp='zero', miss=0, mask=0):
         for i in range(test_data.shape[2]):
             test_data[:,:,i] = imp.fit_transform(test_data[:,:,i])
         
-    test_labels = np.asarray(jap_data['Yte'])
+    test_labels = np.asarray(ts_data['Yte'])
                 
     # valid == train   
     valid_data = train_data
@@ -400,9 +400,9 @@ def getJapDataMiss(kernel='TCK', inp='zero', miss=0, mask=0):
     test_targets = test_data    
     
     if kernel=='TCK':
-        K_tr = jap_data['Ktrtr']
+        K_tr = ts_data['Ktrtr']
         K_vs = K_tr
-        K_ts = jap_data['Ktete']
+        K_ts = ts_data['Ktete']
     else:
         K_tr = ideal_kernel(train_labels)
         K_vs = ideal_kernel(valid_labels)
@@ -513,15 +513,17 @@ def getImpTestData(data_name = 'Libras/LIB_miss05',inp='zero'):
 
 # ========== Blood data (OCC) ==========
 def getBlood(inp='zero'):
-    blood_data = scipy.io.loadmat('../dataset/Blood/Blood3.mat')
+    blood_data = scipy.io.loadmat('../dataset/Blood/Blood_LPS.mat')
     train_data = blood_data['X']
     train_labels = blood_data['Y']
     train_len = blood_data['X_len']
     test_data = blood_data['Xte']
     test_labels = blood_data['Yte']
     test_len = blood_data['Xte_len']
-    K_tr = blood_data['Ktrtr']
-    K_ts = blood_data['Ktete']
+    K_tr = blood_data['Ktrtr'] + ideal_kernel(train_labels)
+    K_ts = blood_data['Ktete'] + ideal_kernel(test_labels)
+#    K_tr = ideal_kernel(train_labels)
+#    K_ts = ideal_kernel(test_labels)
     K_tr = (K_tr-np.amin(K_tr))/(np.amax(K_tr)-np.amin(K_tr))
     K_ts = (K_ts-np.amin(K_ts))/(np.amax(K_ts)-np.amin(K_ts))
     
