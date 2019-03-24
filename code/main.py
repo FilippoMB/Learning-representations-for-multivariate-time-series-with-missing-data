@@ -22,7 +22,7 @@ parser.add_argument("--decoder_init", default='all', help="init decoder with las
 parser.add_argument("--sched_prob", default=0.8, help="probability of sampling from teacher signal in scheduled sampling", type=float)
 parser.add_argument("--learning_rate", default=0.001, help="Adam initial learning rate", type=float)
 parser.add_argument("--batch_size", default=32, help="number of samples in each batch", type=int)
-parser.add_argument("--w_align", default=0.1, help="kernel alignment weight", type=float)
+parser.add_argument("--w_align", default=0.0, help="kernel alignment weight", type=float)
 parser.add_argument("--w_l2", default=0.001, help="l2 norm regularization weight", type=float)
 parser.add_argument("--num_epochs", default=5000, help="number of epochs in training", type=int)
 parser.add_argument("--max_gradient_norm", default=1.0, help="max gradient norm for gradient clipping", type=float)
